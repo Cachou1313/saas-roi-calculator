@@ -916,11 +916,11 @@ export default function App() {
                 {view==="analytics" && "Multi-year projections, scenario analysis and cross-metric comparisons."}
               </p>
             </div>
-            {view==="dashboard"  && <DashboardView  r={r} s={s} />}
-            {view==="operations" && <OperationsView r={r} s={s} />}
-            {view==="compliance" && <ComplianceView r={r} s={s} />}
-            {view==="automation" && <AutomationView r={r} s={s} />}
-            {view==="analytics"  && <AnalyticsView  r={r} s={s} />}
+            {view==="dashboard"  ? <DashboardView  r={r} s={s} /> : null}
+            {view==="operations" ? <OperationsView r={r} s={s} /> : null}
+            {view==="compliance" ? <ComplianceView r={r} s={s} /> : null}
+            {view==="automation" ? <AutomationView r={r} s={s} /> : null}
+            {view==="analytics"  ? <AnalyticsView  r={r} s={s} /> : null}
             <footer style={{ marginTop: 32, paddingTop: 16, borderTop: `1px solid rgba(70,69,84,.15)`,
               display: "flex", justifyContent: "space-between", opacity: .3 }}>
               <p style={{ fontSize: 10, fontFamily: "Space Grotesk, sans-serif",
