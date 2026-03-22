@@ -29,392 +29,913 @@ const GOAL_DESC = {
   "high security/compliance focus": "Full compliance & security weighted",
 };
 
-const P = "#534AB7"; const PT = "#EEEDFE"; const PS = "#3C3489";
-const T = "#0F6E56"; const TT = "#E1F5EE"; const TS = "#085041";
-const A = "#BA7517"; const AT = "#FAEEDA";
-const CAT_COLORS = ["#534AB7","#0F6E56","#BA7517","#D4537E","#185FA5","#D85A30","#639922"];
+const C = {
+  bg: "#131313", surface: "#1C1B1B", surfaceC: "#201F1F", surfaceH: "#2A2A2A", surfaceHH: "#353534",
+  primary: "#C0C1FF", primaryD: "#6366F1", primaryC: "#8083FF",
+  secondary: "#4FDBC8", tertiary: "#FFB783", tertiaryC: "#D97721",
+  onSurf: "#E5E2E1", onSurfV: "#C7C4D7", outline: "#464554", error: "#FFB4AB",
+};
+const CAT = ["#4FDBC8","#8083FF","#FFB783","#ED93B1","#85B7EB","#97C459","#F09595"];
 
 const DEFAULTS = {
   employees: 200, adminRate: 45, nextTierRate: 22, attritionPct: 15,
-  automation: "moderate", compliance: "moderate",
-  efficiencyGoal: "maximum time savings",
-  securityValue: 50000, reportsPerMonth: 8,
-  hoursPerOnboard: 3, scriptCosts: 8000,
+  automation: "moderate", compliance: "moderate", efficiencyGoal: "maximum time savings",
+  securityValue: 50000, reportsPerMonth: 8, hoursPerOnboard: 3, scriptCosts: 8000,
   setupHours: 40, setupHourlyRate: 75, trainingHours: 8,
   rampWeeks: 6, rampEfficiencyPct: 60,
   totalLicenses: 220, activeUserPct: 85,
   integrationHoursAnnual: 20, integrationHourlyRate: 85,
-  intangibleValue: 15000,
-  replacedToolCost: 0,
+  intangibleValue: 15000, replacedToolCost: 0,
   uptimeSLA: 99.9, currentUptimeSLA: 99.0,
 };
 
+const inputStyle = {
+  width: "100%", background: "#2A2A2A", border: "none", borderLeft: `2px solid #464554`,
+  color: "#E5E2E1", fontSize: 13, padding: "8px 12px", outline: "none",
+  fontFamily: "Inter, sans-serif", boxSizing: "border-box", transition: "border-color .2s",
+};
+
+function Inp({ label, k, hint, pre, step = 1, s, set }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ display: "block", fontSize: 10, color: C.onSurfV, fontWeight: 500,
+        marginBottom: hint ? 2 : 6, textTransform: "uppercase", letterSpacing: ".15em" }}>
+        {label}
+      </label>
+      {hint && <div style={{ fontSize: 11, color: C.onSurfV, opacity: .55, marginBottom: 5, lineHeight: 1.4 }}>{hint}</div>}
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        {pre && <span style={{ fontSize: 13, color: C.onSurfV }}>{pre}</span>}
+        <input type="number" value={s[k]} min={0} step={step}
+          onChange={e => set(k)(e.target.value === "" ? 0 : parseFloat(e.target.value))}
+          onFocus={e => e.target.style.borderLeftColor = C.primaryD}
+          onBlur={e => e.target.style.borderLeftColor = C.outline}
+          style={inputStyle} />
+      </div>
+    </div>
+  );
+}
+
+function Sel({ label, k, hint, opts, s, set }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ display: "block", fontSize: 10, color: C.onSurfV, fontWeight: 500,
+        marginBottom: hint ? 2 : 6, textTransform: "uppercase", letterSpacing: ".15em" }}>
+        {label}
+      </label>
+      {hint && <div style={{ fontSize: 11, color: C.onSurfV, opacity: .55, marginBottom: 5, lineHeight: 1.4 }}>{hint}</div>}
+      <select value={s[k]} onChange={e => set(k)(e.target.value)}
+        style={{ ...inputStyle, cursor: "pointer" }}>
+        {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function SecHead({ label }) {
+  return (
+    <div style={{ marginTop: 24, marginBottom: 14 }}>
+      <p style={{ fontSize: 10, color: C.primary, fontWeight: 500, textTransform: "uppercase",
+        letterSpacing: ".2em", fontFamily: "Space Grotesk, sans-serif", margin: 0 }}>{label}</p>
+    </div>
+  );
+}
+
+function KpiCard({ label, value, sub, accent, wide, color }) {
+  const bg = accent ? `linear-gradient(135deg, ${C.primaryD}, #494bd6)` : C.surfaceC;
+  return (
+    <div style={{ background: bg, padding: "20px 22px", gridColumn: wide ? "span 2" : "span 1",
+      borderLeft: !accent && color ? `2px solid ${color}` : "none", minHeight: 120,
+      display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+      <p style={{ fontSize: 10, color: accent ? "rgba(224,224,255,.75)" : C.onSurfV,
+        textTransform: "uppercase", letterSpacing: ".15em",
+        fontFamily: "Space Grotesk, sans-serif", margin: 0 }}>{label}</p>
+      <div style={{ fontSize: accent ? 48 : 26, fontWeight: 800, color: color && !accent ? color : accent ? "#fff" : C.onSurf,
+        fontFamily: "Manrope, sans-serif", lineHeight: 1, margin: "10px 0 6px" }}>{value}</div>
+      {sub && <p style={{ fontSize: 10, color: accent ? C.secondary : C.onSurfV, opacity: accent ? 1 : .6, margin: 0 }}>{sub}</p>}
+    </div>
+  );
+}
+
+function SectionLabel({ label }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+      <h4 style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em",
+        fontFamily: "Space Grotesk, sans-serif", color: C.onSurf, margin: 0 }}>{label}</h4>
+    </div>
+  );
+}
+
+function StatRow({ label, val, sub, color }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+      padding: "10px 0", borderBottom: `1px solid rgba(70,69,84,0.15)` }}>
+      <div>
+        <div style={{ fontSize: 13, color: C.onSurf }}>{label}</div>
+        {sub && <div style={{ fontSize: 11, color: C.onSurfV, opacity: .6, marginTop: 2 }}>{sub}</div>}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: color || C.onSurf,
+        fontFamily: "Space Grotesk, sans-serif", whiteSpace: "nowrap", marginLeft: 16 }}>{val}</div>
+    </div>
+  );
+}
+
+function GaugeBar({ label, value, max, color, fmt }) {
+  const pct = Math.min(100, max > 0 ? (value / max) * 100 : 0);
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+        <span style={{ fontSize: 11, color: C.onSurfV, textTransform: "uppercase",
+          letterSpacing: ".08em", fontFamily: "Space Grotesk, sans-serif" }}>{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: color,
+          fontFamily: "Space Grotesk, sans-serif" }}>{fmt ? fmt(value) : value}</span>
+      </div>
+      <div style={{ height: 6, background: C.surfaceH }}>
+        <div style={{ height: 6, background: color, width: `${pct}%`, transition: "width .5s ease" }} />
+      </div>
+    </div>
+  );
+}
+
+function MiniDonut({ slices, size = 80, stroke = 14 }) {
+  const R = (size / 2) - stroke / 2, cx = size / 2, cy = size / 2;
+  const circ = 2 * Math.PI * R;
+  const total = slices.reduce((a, s) => a + s.value, 0) || 1;
+  let cum = 0;
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
+      {slices.map((sl, i) => {
+        const pct = sl.value / total;
+        const dash = pct * circ;
+        const rot = -90 + cum * 360;
+        cum += pct;
+        return <circle key={i} cx={cx} cy={cy} r={R} fill="none"
+          stroke={sl.color} strokeWidth={stroke}
+          strokeDasharray={`${dash} ${circ - dash}`}
+          style={{ transform: `rotate(${rot}deg)`, transformOrigin: `${cx}px ${cy}px` }} />;
+      })}
+    </svg>
+  );
+}
+
+function BarChart({ bars, maxVal }) {
+  const m = maxVal || Math.max(...bars.map(b => b.value), 1);
+  return (
+    <div>
+      {bars.map((b, i) => (
+        <div key={i} style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+            <span style={{ fontSize: 10, color: C.onSurfV, textTransform: "uppercase",
+              letterSpacing: ".08em", fontFamily: "Space Grotesk, sans-serif" }}>{b.label}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: b.color || C.secondary,
+              fontFamily: "Space Grotesk, sans-serif" }}>{fmt$(b.value)}</span>
+          </div>
+          <div style={{ height: 20, background: C.surfaceH, position: "relative" }}>
+            <div style={{ position: "absolute", inset: 0, background: b.color || C.secondary,
+              width: `${Math.max(2, (b.value / m) * 100)}%`, opacity: .85, transition: "width .4s ease" }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Panel({ children }) {
+  return (
+    <div style={{ background: C.surfaceC, padding: "24px 28px", marginBottom: 20 }}>
+      {children}
+    </div>
+  );
+}
+
+// ── VIEWS ──────────────────────────────────────────────────────────────────
+
+function DashboardView({ r, s }) {
+  const isPos = r.netBenefit >= 0;
+  const breakdown = [
+    { label: "Automation",     value: r.automationSavings },
+    { label: "Auditing",       value: r.auditingSavings },
+    { label: "Tickets",        value: r.ticketSavings },
+    { label: "Security",       value: r.securitySavings },
+    { label: "Scripts",        value: r.scriptSavings },
+    { label: "Uptime",         value: r.uptimeSavings },
+    { label: "Intangibles",    value: s.intangibleValue },
+    { label: "Displaced tool", value: s.replacedToolCost },
+  ].filter(x => x.value > 0);
+  const totalPct = breakdown.reduce((a, x) => a + x.value, 0) || 1;
+
+  const tableRows = [
+    { label: "Automation savings",          current: fmt$(r.automationSavings / (r.rampMultiplier || 1)), proposed: fmt$(r.automationSavings), delta: r.automationSavings, pos: true },
+    { label: "Auditing savings",            current: fmt$(r.auditingSavings / (r.rampMultiplier || 1)),   proposed: fmt$(r.auditingSavings),   delta: r.auditingSavings,   pos: true },
+    { label: "Ticket & delegation savings", current: fmt$(r.ticketSavings / (r.rampMultiplier || 1)),     proposed: fmt$(r.ticketSavings),     delta: r.ticketSavings,     pos: true },
+    { label: "Security & risk savings",     current: "$0", proposed: fmt$(r.securitySavings),  delta: r.securitySavings,  pos: true },
+    { label: "Script cost avoidance",       current: "$0", proposed: fmt$(r.scriptSavings),    delta: r.scriptSavings,    pos: true },
+    { label: "Uptime reliability gain",     current: "$0", proposed: fmt$(r.uptimeSavings),    delta: r.uptimeSavings,    pos: true },
+    { label: "Wasted license cost",         current: fmt$(r.wastedLicenseCost), proposed: "$0", delta: -r.wastedLicenseCost, pos: false },
+    { label: "Integration overhead",        current: "$0", proposed: fmt$(-r.integrationCost), delta: -r.integrationCost, pos: false },
+    { label: "Setup & training (3yr amort)",current: "$0", proposed: fmt$(-r.setupAmortized),  delta: -r.setupAmortized,  pos: false },
+  ];
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 24 }}>
+        <KpiCard label="ROI Percentage" value={fmtPct(r.roi)} sub={isPos ? "Positive return" : "Negative return"} accent />
+        <KpiCard label="Net annual benefit" value={fmt$(r.netBenefit)} sub={isPos ? "Positive net position" : "Investment exceeds return"} color={isPos ? C.secondary : C.error} />
+        <KpiCard label="Payback period" value={r.paybackMonths > 60 ? "60+ mo" : `${fmtDec(r.paybackMonths,1)} mo`} sub="Aggressive amortization" />
+        <KpiCard label="Total annual benefits" value={fmt$(r.grossSavings)} sub="Gross benefit stack" color={C.primary} />
+        <KpiCard label="Total annual cost" value={fmt$(r.totalAnnualCost)} sub="OpEx allocation" color={C.error} />
+        <KpiCard label="FTE equivalent" value={`${fmtDec(r.fte,1)}`} sub="Ramp-adjusted admin hours" color={C.tertiary} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+        <Panel>
+          <SectionLabel label="Benefits by category" />
+          <BarChart bars={breakdown.map((b,i) => ({ ...b, color: CAT[i%CAT.length] }))} />
+        </Panel>
+        <Panel>
+          <SectionLabel label="Benefit distribution" />
+          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <MiniDonut slices={breakdown.map((b,i) => ({ value: b.value, color: CAT[i%CAT.length] }))} size={110} stroke={18} />
+              <div style={{ position: "absolute", top: "50%", left: "50%",
+                transform: "translate(-50%,-50%)", textAlign: "center" }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.primary, fontFamily: "Manrope, sans-serif" }}>
+                  {breakdown.length > 0 ? Math.round((breakdown[0].value/totalPct)*100) : 0}%
+                </div>
+                <div style={{ fontSize: 8, color: C.onSurfV }}>top</div>
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              {breakdown.map((b,i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <div style={{ width: 8, height: 8, background: CAT[i%CAT.length], flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, color: C.onSurfV, flex: 1, textTransform: "uppercase",
+                    letterSpacing: ".06em", fontFamily: "Space Grotesk, sans-serif" }}>{b.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.onSurf,
+                    fontFamily: "Space Grotesk, sans-serif" }}>{Math.round((b.value/totalPct)*100)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      <Panel>
+        <SectionLabel label="Detailed benefit attribution" />
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: "rgba(53,53,52,.4)" }}>
+              {["Metric detail","Baseline state","Proposed state","Annual delta"].map((h,i) => (
+                <th key={h} style={{ padding: "12px 20px", fontSize: 10, textTransform: "uppercase",
+                  letterSpacing: ".1em", color: C.onSurfV, fontFamily: "Space Grotesk, sans-serif",
+                  textAlign: i===3 ? "right" : "left", fontWeight: 500 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tableRows.map((row,i) => (
+              <tr key={i} style={{ borderBottom: `1px solid rgba(70,69,84,.1)` }}>
+                <td style={{ padding: "14px 20px", fontWeight: 500, color: C.onSurf }}>{row.label}</td>
+                <td style={{ padding: "14px 20px", color: C.onSurfV }}>{row.current}</td>
+                <td style={{ padding: "14px 20px", color: C.onSurfV }}>{row.proposed}</td>
+                <td style={{ padding: "14px 20px", textAlign: "right", fontWeight: 700,
+                  color: row.pos ? C.secondary : C.error, fontFamily: "Space Grotesk, sans-serif" }}>
+                  {row.pos ? "+" : ""}{fmt$(row.delta)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ padding: "16px 20px", background: "rgba(42,42,42,.4)", textAlign: "right", marginTop: 1 }}>
+          <p style={{ fontSize: 10, color: C.onSurfV, textTransform: "uppercase",
+            letterSpacing: ".1em", fontFamily: "Space Grotesk, sans-serif", margin: "0 0 4px" }}>Net annual benefit</p>
+          <p style={{ fontSize: 30, fontWeight: 800, color: isPos ? C.primary : C.error,
+            fontFamily: "Manrope, sans-serif", margin: 0 }}>{isPos?"+":""}{fmt$(r.netBenefit)}</p>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function OperationsView({ r, s }) {
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24 }}>
+        <KpiCard label="Base license cost" value={fmt$(r.baseLicenseCost)} sub={`${s.automation} tier — ${fmtN(s.employees)} seats`} color={C.primary} />
+        <KpiCard label="Wasted license cost" value={fmt$(r.wastedLicenseCost)} sub={`${100-s.activeUserPct}% unused seats`} color={C.error} />
+        <KpiCard label="Effective cost / active user" value={fmt$(r.effectiveCostPerUser)} sub={`${s.activeUserPct}% utilization rate`} color={C.tertiary} />
+        <KpiCard label="Integration overhead" value={fmt$(r.integrationCost)} sub={`${s.integrationHoursAnnual} hrs/yr`} color={C.error} />
+        <KpiCard label="Setup & training (amortized)" value={fmt$(r.setupAmortized)} sub={`Full cost: ${fmt$(r.setupCost)}`} color={C.onSurfV} />
+        <KpiCard label="Total annual cost" value={fmt$(r.totalAnnualCost)} sub="All cost factors combined" color={C.error} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <Panel>
+          <SectionLabel label="Cost breakdown" />
+          <BarChart bars={[
+            { label: "Base license", value: r.baseLicenseCost, color: C.primaryC },
+            { label: "Wasted licenses", value: r.wastedLicenseCost, color: C.error },
+            { label: "Integration", value: r.integrationCost, color: C.tertiary },
+            { label: "Setup & training", value: r.setupAmortized, color: C.onSurfV },
+          ]} />
+        </Panel>
+        <Panel>
+          <SectionLabel label="License utilization" />
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 11, color: C.onSurfV, textTransform: "uppercase", letterSpacing: ".08em", fontFamily: "Space Grotesk, sans-serif" }}>Active users</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: C.secondary, fontFamily: "Space Grotesk, sans-serif" }}>{s.activeUserPct}%</span>
+            </div>
+            <div style={{ height: 28, background: C.surfaceH, display: "flex" }}>
+              <div style={{ width: `${s.activeUserPct}%`, background: C.secondary, opacity: .85 }} />
+              <div style={{ flex: 1, background: C.error, opacity: .3 }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+              <span style={{ fontSize: 10, color: C.secondary, fontFamily: "Space Grotesk, sans-serif" }}>Active: {Math.round(s.totalLicenses * s.activeUserPct/100)}</span>
+              <span style={{ fontSize: 10, color: C.error, fontFamily: "Space Grotesk, sans-serif" }}>Unused: {Math.round(s.totalLicenses * (1 - s.activeUserPct/100))}</span>
+            </div>
+          </div>
+          <StatRow label="Total licenses purchased" val={fmtN(s.totalLicenses)} />
+          <StatRow label="Active users" val={fmtN(Math.round(s.totalLicenses * s.activeUserPct/100))} color={C.secondary} />
+          <StatRow label="Wasted seats" val={fmtN(Math.round(s.totalLicenses * (1-s.activeUserPct/100)))} color={C.error} />
+          <StatRow label="Cost per active user" val={fmt$(r.effectiveCostPerUser)} color={C.tertiary} />
+        </Panel>
+        <Panel>
+          <SectionLabel label="Ramp & productivity" />
+          <StatRow label="Ramp period" val={`${s.rampWeeks} weeks`} />
+          <StatRow label="Efficiency during ramp" val={`${s.rampEfficiencyPct}%`} color={C.tertiary} />
+          <StatRow label="Ramp productivity factor" val={fmtPct(r.rampMultiplier * 100)} color={C.secondary} />
+          <StatRow label="Productivity loss (ramp)" val={fmt$(r.rampLoss)} color={C.error} />
+        </Panel>
+        <Panel>
+          <SectionLabel label="Uptime & reliability" />
+          <GaugeBar label="Current uptime SLA" value={s.currentUptimeSLA} max={100} color={C.onSurfV} fmt={v => `${v}%`} />
+          <GaugeBar label="New tool uptime SLA" value={s.uptimeSLA} max={100} color={C.secondary} fmt={v => `${v}%`} />
+          <StatRow label="Uptime improvement" val={`+${fmtDec(Math.max(0,s.uptimeSLA-s.currentUptimeSLA),2)}%`} color={C.secondary} />
+          <StatRow label="Uptime savings (annual)" val={fmt$(r.uptimeSavings)} color={C.secondary} />
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function ComplianceView({ r, s }) {
+  const compMulti = COMP_MULTI[s.compliance];
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24 }}>
+        <KpiCard label="Auditing savings" value={fmt$(r.auditingSavings)} sub={`${s.compliance} compliance tier`} color={C.primary} />
+        <KpiCard label="Security / risk savings" value={fmt$(r.securitySavings)} sub={`${compMulti}x compliance multiplier`} color={C.secondary} />
+        <KpiCard label="Script cost avoidance" value={fmt$(r.scriptSavings)} sub="Avoided custom script maintenance" color={C.tertiary} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <Panel>
+          <SectionLabel label="Compliance savings breakdown" />
+          <BarChart bars={[
+            { label: "Auditing", value: r.auditingSavings, color: C.primary },
+            { label: "Security / risk", value: r.securitySavings, color: C.secondary },
+            { label: "Script avoidance", value: r.scriptSavings, color: C.tertiary },
+          ]} />
+        </Panel>
+        <Panel>
+          <SectionLabel label="Compliance tier impact" />
+          {["standard","moderate","strict"].map(tier => {
+            const multi = COMP_MULTI[tier];
+            const active = s.compliance === tier;
+            return (
+              <div key={tier} style={{ padding: "12px 14px", marginBottom: 8,
+                background: active ? "rgba(99,102,241,.12)" : C.surfaceH,
+                borderLeft: `3px solid ${active ? C.primaryD : "transparent"}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 12, fontWeight: active ? 700 : 400,
+                    color: active ? C.primary : C.onSurfV, textTransform: "capitalize",
+                    fontFamily: "Space Grotesk, sans-serif" }}>{tier}</span>
+                  <span style={{ fontSize: 11, color: active ? C.secondary : C.onSurfV,
+                    fontFamily: "Space Grotesk, sans-serif" }}>{multi}x multiplier</span>
+                </div>
+              </div>
+            );
+          })}
+          <div style={{ marginTop: 16 }}>
+            <StatRow label="Active multiplier" val={`${compMulti}x`} color={C.secondary} />
+            <StatRow label="Reports per month" val={fmtN(s.reportsPerMonth)} />
+            <StatRow label="Audit hours saved (annual)" val={`${fmtDec(r.auditHoursSaved,1)} hrs`} color={C.primary} />
+          </div>
+        </Panel>
+        <Panel>
+          <SectionLabel label="Security risk profile" />
+          <StatRow label="Annual risk exposure value" val={fmt$(s.securityValue)} />
+          <StatRow label="Compliance multiplier" val={`${compMulti}x`} color={C.secondary} />
+          <StatRow label="Goal security weight" val={fmtPct(GOAL_W[s.efficiencyGoal].security * 100)} color={C.tertiary} />
+          <StatRow label="Calculated security savings" val={fmt$(r.securitySavings)} color={C.secondary} />
+          <div style={{ marginTop: 16 }}>
+            <GaugeBar label="Security weight (goal)" value={GOAL_W[s.efficiencyGoal].security} max={1} color={C.secondary} fmt={v => fmtPct(v*100)} />
+            <GaugeBar label="Auditing weight (goal)" value={GOAL_W[s.efficiencyGoal].auditing} max={1} color={C.primary} fmt={v => fmtPct(v*100)} />
+          </div>
+        </Panel>
+        <Panel>
+          <SectionLabel label="Efficiency goal comparison" />
+          {Object.entries(GOAL_W).map(([goal, w]) => {
+            const active = s.efficiencyGoal === goal;
+            const secSavings = s.securityValue * compMulti * w.security;
+            const auditSavings = s.reportsPerMonth * (s.compliance==="strict"?4:s.compliance==="moderate"?2.5:1.5) * 12 * compMulti * w.auditing * s.adminRate;
+            return (
+              <div key={goal} style={{ padding: "12px 14px", marginBottom: 8,
+                background: active ? "rgba(99,102,241,.12)" : C.surfaceH,
+                borderLeft: `3px solid ${active ? C.primaryD : "transparent"}` }}>
+                <div style={{ fontSize: 11, fontWeight: active ? 700 : 400,
+                  color: active ? C.primary : C.onSurfV, marginBottom: 6,
+                  fontFamily: "Space Grotesk, sans-serif", textTransform: "uppercase", letterSpacing: ".06em" }}>
+                  {goal}
+                </div>
+                <div style={{ display: "flex", gap: 16 }}>
+                  <span style={{ fontSize: 10, color: C.onSurfV }}>Security: <strong style={{ color: C.secondary }}>{fmt$(secSavings)}</strong></span>
+                  <span style={{ fontSize: 10, color: C.onSurfV }}>Audit: <strong style={{ color: C.primary }}>{fmt$(auditSavings)}</strong></span>
+                </div>
+              </div>
+            );
+          })}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function AutomationView({ r, s }) {
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24 }}>
+        <KpiCard label="Automation savings" value={fmt$(r.automationSavings)} sub="Ramp-adjusted onboard/offboard" color={C.secondary} />
+        <KpiCard label="Ticket savings" value={fmt$(r.ticketSavings)} sub="Via tier delegation rate" color={C.primary} />
+        <KpiCard label="Total hours saved" value={`${fmtN(r.totalHoursSaved)} hrs`} sub={`${fmtDec(r.fte,2)} FTE equivalent`} color={C.tertiary} />
+        <KpiCard label="Annual attrition" value={fmtN(r.attritionCount)} sub={`${s.attritionPct}% of ${fmtN(s.employees)} employees`} />
+        <KpiCard label="Reduced tickets (annual)" value={fmtN(r.reducedTickets)} sub={`${Math.round(TICKET_RED[s.automation]*100)}% reduction — ${s.automation} tier`} color={C.primary} />
+        <KpiCard label="Delegated hours" value={`${fmtDec(r.delegatedHours,1)} hrs`} sub="Shifted to lower-cost staff" color={C.tertiary} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <Panel>
+          <SectionLabel label="Automation savings comparison" />
+          <BarChart bars={[
+            { label: "Automation (onboard/offboard)", value: r.automationSavings, color: C.secondary },
+            { label: "Ticket delegation", value: r.ticketSavings, color: C.primary },
+            { label: "Script avoidance", value: r.scriptSavings, color: C.tertiary },
+          ]} />
+        </Panel>
+        <Panel>
+          <SectionLabel label="Tier automation profile" />
+          {["basic","moderate","advanced"].map(tier => {
+            const active = s.automation === tier;
+            return (
+              <div key={tier} style={{ padding: "12px 14px", marginBottom: 8,
+                background: active ? "rgba(79,219,200,.08)" : C.surfaceH,
+                borderLeft: `3px solid ${active ? C.secondary : "transparent"}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: active?700:400, color: active?C.secondary:C.onSurfV,
+                    textTransform: "capitalize", fontFamily: "Space Grotesk, sans-serif" }}>{tier}</span>
+                </div>
+                <div style={{ display: "flex", gap: 16 }}>
+                  <span style={{ fontSize: 10, color: C.onSurfV }}>Ticket reduction: <strong style={{ color: C.primary }}>{Math.round(TICKET_RED[tier]*100)}%</strong></span>
+                  <span style={{ fontSize: 10, color: C.onSurfV }}>Delegation: <strong style={{ color: C.secondary }}>{Math.round(DELEG_RATE[tier]*100)}%</strong></span>
+                </div>
+              </div>
+            );
+          })}
+        </Panel>
+        <Panel>
+          <SectionLabel label="Onboard / offboard detail" />
+          <StatRow label="Annual attrition count" val={fmtN(r.attritionCount)} />
+          <StatRow label="Hours per event" val={`${s.hoursPerOnboard} hrs`} />
+          <StatRow label="Events per employee (in + out)" val="2x" />
+          <StatRow label="Gross hours before ramp" val={`${fmtN(r.attritionCount * s.hoursPerOnboard * 2)} hrs`} />
+          <StatRow label="Ramp factor applied" val={fmtPct(r.rampMultiplier*100)} color={C.tertiary} />
+          <StatRow label="Ramp-adjusted hours saved" val={`${fmtDec(r.autoHoursSaved * r.rampMultiplier, 1)} hrs`} color={C.secondary} />
+          <StatRow label="Automation savings" val={fmt$(r.automationSavings)} color={C.secondary} />
+        </Panel>
+        <Panel>
+          <SectionLabel label="Goal weight — automation" />
+          {Object.entries(GOAL_W).map(([goal, w]) => {
+            const active = s.efficiencyGoal === goal;
+            return (
+              <div key={goal} style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                  <span style={{ fontSize: 10, color: active ? C.secondary : C.onSurfV,
+                    fontFamily: "Space Grotesk, sans-serif", textTransform: "uppercase",
+                    letterSpacing: ".06em", fontWeight: active ? 700 : 400 }}>{goal}</span>
+                  <span style={{ fontSize: 10, color: active ? C.secondary : C.onSurfV,
+                    fontFamily: "Space Grotesk, sans-serif" }}>{fmtPct(w.automation*100)}</span>
+                </div>
+                <div style={{ height: 6, background: C.surfaceH }}>
+                  <div style={{ height: 6, background: active ? C.secondary : C.outline,
+                    width: `${w.automation*100}%`, transition: "width .4s ease" }} />
+                </div>
+              </div>
+            );
+          })}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsView({ r, s }) {
+  const isPos = r.netBenefit >= 0;
+  const years = [1,2,3];
+  const yearData = years.map(y => {
+    const benefit = r.grossSavings * y;
+    const cost = r.totalAnnualCost * y + (y===1 ? r.setupCost * (2/3) : 0);
+    return { year: `Year ${y}`, benefit, cost, net: benefit - cost };
+  });
+  const maxYr = Math.max(...yearData.map(d => d.benefit), 1);
+
+  const scenarios = [
+    { label: "Conservative (−25%)", benefits: r.grossSavings * .75, costs: r.totalAnnualCost * 1.1 },
+    { label: "Base case",           benefits: r.grossSavings,       costs: r.totalAnnualCost },
+    { label: "Optimistic (+25%)",   benefits: r.grossSavings * 1.25,costs: r.totalAnnualCost * .95 },
+  ];
+
+  const breakdownFull = [
+    { label: "Automation",     value: r.automationSavings },
+    { label: "Auditing",       value: r.auditingSavings },
+    { label: "Tickets",        value: r.ticketSavings },
+    { label: "Security",       value: r.securitySavings },
+    { label: "Scripts",        value: r.scriptSavings },
+    { label: "Uptime",         value: r.uptimeSavings },
+    { label: "Intangibles",    value: s.intangibleValue },
+    { label: "Displaced tool", value: s.replacedToolCost },
+  ].filter(x => x.value > 0);
+
+  return (
+    <div>
+      {/* Multi-year projection */}
+      <Panel>
+        <SectionLabel label="Multi-year benefit vs. cost projection" />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
+          {yearData.map((d,i) => (
+            <div key={i} style={{ background: C.surfaceH, padding: "16px 18px",
+              borderLeft: `3px solid ${d.net >= 0 ? C.secondary : C.error}` }}>
+              <div style={{ fontSize: 10, color: C.onSurfV, textTransform: "uppercase",
+                letterSpacing: ".1em", fontFamily: "Space Grotesk, sans-serif", marginBottom: 8 }}>{d.year}</div>
+              <div style={{ fontSize: 13, color: C.onSurf, marginBottom: 4 }}>Benefits: <strong style={{ color: C.secondary }}>{fmt$(d.benefit)}</strong></div>
+              <div style={{ fontSize: 13, color: C.onSurf, marginBottom: 8 }}>Costs: <strong style={{ color: C.error }}>{fmt$(d.cost)}</strong></div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: d.net >= 0 ? C.secondary : C.error,
+                fontFamily: "Manrope, sans-serif" }}>Net: {d.net >= 0 ? "+" : ""}{fmt$(d.net)}</div>
+            </div>
+          ))}
+        </div>
+        {yearData.map((d,i) => (
+          <div key={i} style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 10, color: C.onSurfV, textTransform: "uppercase",
+              letterSpacing: ".08em", fontFamily: "Space Grotesk, sans-serif", marginBottom: 6 }}>{d.year}</div>
+            <div style={{ display: "flex", gap: 4, height: 20 }}>
+              <div style={{ background: C.secondary, opacity: .85, width: `${(d.benefit/maxYr)*100}%`, transition: "width .4s ease" }} />
+            </div>
+            <div style={{ display: "flex", gap: 4, height: 8, marginTop: 2 }}>
+              <div style={{ background: C.error, opacity: .7, width: `${(d.cost/maxYr)*100}%`, transition: "width .4s ease" }} />
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+              <span style={{ fontSize: 9, color: C.secondary, fontFamily: "Space Grotesk, sans-serif" }}>Benefits</span>
+              <span style={{ fontSize: 9, color: C.error, fontFamily: "Space Grotesk, sans-serif" }}>Costs</span>
+            </div>
+          </div>
+        ))}
+      </Panel>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+        {/* Scenario analysis */}
+        <Panel>
+          <SectionLabel label="Scenario analysis" />
+          {scenarios.map((sc,i) => {
+            const net = sc.benefits - sc.costs;
+            const roi = sc.costs > 0 ? (net/sc.costs)*100 : 0;
+            const isScPos = net >= 0;
+            return (
+              <div key={i} style={{ padding: "14px 16px", marginBottom: 10,
+                background: i===1 ? "rgba(99,102,241,.1)" : C.surfaceH,
+                borderLeft: `3px solid ${i===1 ? C.primaryD : isScPos ? C.secondary : C.error}` }}>
+                <div style={{ fontSize: 11, color: i===1 ? C.primary : C.onSurfV, fontWeight: i===1?700:400,
+                  fontFamily: "Space Grotesk, sans-serif", textTransform: "uppercase",
+                  letterSpacing: ".06em", marginBottom: 8 }}>{sc.label}</div>
+                <div style={{ display: "flex", gap: 20 }}>
+                  <div>
+                    <div style={{ fontSize: 9, color: C.onSurfV, marginBottom: 2 }}>Net benefit</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: isScPos ? C.secondary : C.error,
+                      fontFamily: "Manrope, sans-serif" }}>{isScPos?"+":""}{fmt$(net)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 9, color: C.onSurfV, marginBottom: 2 }}>ROI</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: isScPos ? C.secondary : C.error,
+                      fontFamily: "Manrope, sans-serif" }}>{fmtPct(roi)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 9, color: C.onSurfV, marginBottom: 2 }}>Payback</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: C.tertiary,
+                      fontFamily: "Manrope, sans-serif" }}>
+                      {sc.benefits > 0 ? `${fmtDec((sc.costs/sc.benefits)*12,1)} mo` : "N/A"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </Panel>
+
+        {/* Cost vs benefit ratio */}
+        <Panel>
+          <SectionLabel label="Cost vs. benefit ratio" />
+          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 20 }}>
+            <MiniDonut size={100} stroke={18} slices={[
+              { value: r.grossSavings, color: C.secondary },
+              { value: r.totalAnnualCost, color: C.error },
+            ]} />
+            <div>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 9, color: C.onSurfV, fontFamily: "Space Grotesk, sans-serif",
+                  textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 2 }}>Total benefits</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: C.secondary,
+                  fontFamily: "Manrope, sans-serif" }}>{fmt$(r.grossSavings)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 9, color: C.onSurfV, fontFamily: "Space Grotesk, sans-serif",
+                  textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 2 }}>Total costs</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: C.error,
+                  fontFamily: "Manrope, sans-serif" }}>{fmt$(r.totalAnnualCost)}</div>
+              </div>
+            </div>
+          </div>
+          <GaugeBar label="Benefits" value={r.grossSavings} max={r.grossSavings + r.totalAnnualCost} color={C.secondary} fmt={fmt$} />
+          <GaugeBar label="Costs" value={r.totalAnnualCost} max={r.grossSavings + r.totalAnnualCost} color={C.error} fmt={fmt$} />
+          <div style={{ marginTop: 16, padding: "12px 14px", background: C.surfaceH,
+            borderLeft: `3px solid ${isPos ? C.primary : C.error}` }}>
+            <span style={{ fontSize: 11, color: C.onSurfV, fontFamily: "Space Grotesk, sans-serif" }}>
+              For every $1 spent, this tool returns{" "}
+              <strong style={{ color: isPos ? C.secondary : C.error }}>
+                ${r.totalAnnualCost > 0 ? fmtDec(r.grossSavings / r.totalAnnualCost, 2) : "0"}
+              </strong>
+            </span>
+          </div>
+        </Panel>
+      </div>
+
+      {/* Savings category deep dive */}
+      <Panel>
+        <SectionLabel label="Savings category deep dive" />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+          {breakdownFull.map((b,i) => (
+            <div key={i} style={{ background: C.surfaceH, padding: "14px 16px",
+              borderTop: `3px solid ${CAT[i%CAT.length]}` }}>
+              <div style={{ fontSize: 9, color: C.onSurfV, textTransform: "uppercase",
+                letterSpacing: ".08em", fontFamily: "Space Grotesk, sans-serif", marginBottom: 8 }}>{b.label}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: CAT[i%CAT.length],
+                fontFamily: "Manrope, sans-serif", marginBottom: 6 }}>{fmt$(b.value)}</div>
+              <div style={{ height: 3, background: C.surfaceC }}>
+                <div style={{ height: 3, background: CAT[i%CAT.length],
+                  width: `${Math.round((b.value/(r.grossSavings||1))*100)}%` }} />
+              </div>
+              <div style={{ fontSize: 9, color: C.onSurfV, marginTop: 4 }}>
+                {Math.round((b.value/(r.grossSavings||1))*100)}% of total
+              </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ── SIDEBAR NAV ICONS (SVG) ────────────────────────────────────────────────
+
+const icons = {
+  dashboard: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
+  operations: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg>,
+  compliance: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 2l7 3v6c0 5-3.5 9.74-7 11-3.5-1.26-7-6-7-11V5l7-3z"/><path d="M9 12l2 2 4-4"/></svg>,
+  automation: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>,
+  analytics: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+};
+
+const NAV_ITEMS = [
+  { id: "dashboard",  label: "Dashboard" },
+  { id: "operations", label: "Operations" },
+  { id: "compliance", label: "Compliance" },
+  { id: "automation", label: "Automation" },
+  { id: "analytics",  label: "Analytics" },
+];
+
+// ── INPUT SIDEBAR SECTIONS ─────────────────────────────────────────────────
+
+function InputSidebar({ s, set }) {
+  const p = { s, set };
+  return (
+    <section style={{ width: 300, flexShrink: 0, background: C.surfaceC,
+      borderRight: `1px solid rgba(70,69,84,.15)`, overflowY: "auto", padding: "24px 22px" }}>
+
+      <SecHead label="Organization" />
+      <Inp k="employees"    label="Total headcount"        hint="Total employees in your organization." {...p} />
+      <Inp k="adminRate"    label="Admin hourly rate"  pre="$" hint="Fully-loaded hourly cost of senior admin." {...p} />
+      <Inp k="nextTierRate" label="Next-tier staff rate" pre="$" hint="Hourly rate of lower-tier delegated staff." {...p} />
+      <Inp k="attritionPct" label="Annual attrition (%)" pre="%" step={0.5} hint="% of workforce replaced annually." {...p} />
+
+      <SecHead label="Operational needs & tier" />
+      <Sel k="automation" label="Automation needs" hint="Classifies complexity and feature tier."
+        opts={[{v:"basic",l:"Basic"},{v:"moderate",l:"Moderate"},{v:"advanced",l:"Advanced"}]} {...p} />
+      <Sel k="compliance" label="Compliance requirements" hint="Multiplier on security and auditing."
+        opts={[{v:"standard",l:"Standard"},{v:"moderate",l:"Moderate"},{v:"strict",l:"Strict"}]} {...p} />
+      <Sel k="efficiencyGoal" label="Efficiency goal" hint={GOAL_DESC[s.efficiencyGoal]}
+        opts={[
+          {v:"basic only",l:"Basic only"},
+          {v:"maximum time savings",l:"Maximum time savings"},
+          {v:"high security/compliance focus",l:"High security / compliance focus"},
+        ]} {...p} />
+
+      <SecHead label="Compliance & risk" />
+      <Inp k="securityValue"   label="Annual risk mitigation value" pre="$" hint="Value of avoided incidents and fines." {...p} />
+      <Inp k="reportsPerMonth" label="Reports / reviews per month"  hint="Manual compliance reports run monthly." {...p} />
+
+      <SecHead label="Automation" />
+      <Inp k="hoursPerOnboard" label="Hours per onboard / offboard" step={0.5} hint="Admin hours per hire or departure." {...p} />
+
+      <SecHead label="Risk avoidance" />
+      <Inp k="scriptCosts" label="Avoided script costs (annual)" pre="$" hint="Annual spend on custom scripts." {...p} />
+
+      <SecHead label="Implementation" />
+      <Inp k="setupHours"      label="Setup & config hours"         hint="IT hours to deploy and configure." {...p} />
+      <Inp k="setupHourlyRate" label="Setup staff hourly rate"  pre="$" hint="Rate of person(s) handling setup." {...p} />
+      <Inp k="trainingHours"   label="Training hours per employee"  hint="Hours each employee learns the tool." step={0.5} {...p} />
+
+      <SecHead label="Productivity ramp" />
+      <Inp k="rampWeeks"         label="Ramp period (weeks)"         hint="Weeks before staff reach full productivity." {...p} />
+      <Inp k="rampEfficiencyPct" label="Efficiency during ramp (%)" pre="%" hint="% of full productivity during ramp." {...p} />
+
+      <SecHead label="License utilization" />
+      <Inp k="totalLicenses"  label="Total licenses purchased" hint="Total seats in your contract." {...p} />
+      <Inp k="activeUserPct"  label="Active user rate (%)" pre="%" hint="% of licensed users actively using the tool." {...p} />
+
+      <SecHead label="Integration & maintenance" />
+      <Inp k="integrationHoursAnnual" label="Annual integration hours"   hint="Hours/year maintaining API connections." {...p} />
+      <Inp k="integrationHourlyRate"  label="Integration staff rate" pre="$" hint="Rate of technical integration staff." {...p} />
+
+      <SecHead label="Intangible benefits" />
+      <Inp k="intangibleValue" label="Estimated intangible value" pre="$" hint="Satisfaction, error reduction, faster ramp." {...p} />
+
+      <SecHead label="Competitive displacement" />
+      <Inp k="replacedToolCost" label="Replaced tool annual cost" pre="$" hint="Incumbent tool license — treated as avoided spend." {...p} />
+
+      <SecHead label="Uptime & reliability" />
+      <Inp k="uptimeSLA"        label="New tool uptime SLA (%)"    pre="%" step={0.01} hint="Uptime guarantee of the new tool." {...p} />
+      <Inp k="currentUptimeSLA" label="Current solution uptime (%)" pre="%" step={0.01} hint="Uptime of your existing solution." {...p} />
+
+      <div style={{ marginTop: 32, paddingTop: 20, borderTop: `1px solid rgba(70,69,84,.2)`, textAlign: "center" }}>
+        <p style={{ fontSize: 9, color: C.onSurfV, opacity: .3, textTransform: "uppercase",
+          letterSpacing: ".15em", fontFamily: "Space Grotesk, sans-serif" }}>Extended parameters locked</p>
+      </div>
+    </section>
+  );
+}
+
+// ── ROOT ──────────────────────────────────────────────────────────────────
+
 export default function App() {
   const [s, setS] = useState(DEFAULTS);
+  const [view, setView] = useState("dashboard");
   const set = k => v => setS(p => ({ ...p, [k]: v }));
 
   const r = useMemo(() => {
     const w = GOAL_W[s.efficiencyGoal];
     const baseLicenseCost = getPlanCost(s.employees, s.automation);
-
-    // ── Integration & maintenance overhead (reduces net savings) ──
     const integrationCost = s.integrationHoursAnnual * s.integrationHourlyRate;
-
-    // ── License utilization (adjusts effective cost per user) ──
     const utilRate = Math.min(s.activeUserPct, 100) / 100;
     const effectiveCostPerUser = utilRate > 0 ? baseLicenseCost / (s.totalLicenses * utilRate) : 0;
     const wastedLicenseCost = baseLicenseCost * (1 - utilRate);
-
-    // ── Implementation & onboarding (one-time, amortized over 3yr) ──
     const setupCost = s.setupHours * s.setupHourlyRate + s.employees * s.trainingHours * s.nextTierRate;
     const setupAmortized = setupCost / 3;
-
-    // ── Productivity ramp loss (reduces year-1 savings) ──
-    const rampFraction = (s.rampWeeks / 52);
-    const rampDeficit = 1 - (Math.min(s.rampEfficiencyPct, 100) / 100);
-
-    // ── Uptime / reliability value ──
-    const newUptime = Math.min(s.uptimeSLA, 100) / 100;
-    const oldUptime = Math.min(s.currentUptimeSLA, 100) / 100;
-    const uptimeGain = Math.max(0, newUptime - oldUptime);
-    const annualWorkHours = s.employees * 2080;
-    const uptimeSavings = uptimeGain * annualWorkHours * s.adminRate;
-
-    // ── Core operational savings (weighted by goal & ramp) ──
+    const rampFraction = s.rampWeeks / 52;
+    const rampDeficit = 1 - Math.min(s.rampEfficiencyPct, 100) / 100;
+    const rampMultiplier = 1 - rampFraction * rampDeficit;
+    const uptimeSavings = Math.max(0, Math.min(s.uptimeSLA,100)/100 - Math.min(s.currentUptimeSLA,100)/100) * s.employees * 2080 * s.adminRate;
     const attritionCount = Math.round(s.employees * s.attritionPct / 100);
-    const auditHoursBase = s.compliance === "strict" ? 4 : s.compliance === "moderate" ? 2.5 : 1.5;
+    const auditHoursBase = s.compliance==="strict"?4:s.compliance==="moderate"?2.5:1.5;
     const auditHoursSaved = s.reportsPerMonth * auditHoursBase * 12 * COMP_MULTI[s.compliance] * w.auditing;
-    const auditingSavings = auditHoursSaved * s.adminRate;
     const autoHoursSaved = attritionCount * s.hoursPerOnboard * 2 * w.automation;
-    const automationSavings = autoHoursSaved * s.adminRate;
     const reducedTickets = Math.round(s.employees * 2 * TICKET_RED[s.automation]);
     const delegatedHours = reducedTickets * 0.5 * (1 - DELEG_RATE[s.automation]) * w.automation;
-    const ticketSavings = delegatedHours * (s.adminRate - s.nextTierRate);
+    const rampedAutomation = autoHoursSaved * s.adminRate * rampMultiplier;
+    const rampedAuditing = auditHoursSaved * s.adminRate * rampMultiplier;
+    const rampedTickets = delegatedHours * (s.adminRate - s.nextTierRate) * rampMultiplier;
     const securitySavings = s.securityValue * COMP_MULTI[s.compliance] * w.security;
     const scriptSavings = s.scriptCosts * w.scripts;
-
-    // Apply ramp reduction to time-based savings only
-    const rampMultiplier = 1 - (rampFraction * rampDeficit);
-    const rampedAutomation = automationSavings * rampMultiplier;
-    const rampedAuditing = auditingSavings * rampMultiplier;
-    const rampedTickets = ticketSavings * rampMultiplier;
-    const rampLoss = (automationSavings + auditingSavings + ticketSavings) - (rampedAutomation + rampedAuditing + rampedTickets);
-
-    // ── Gross benefits ──
+    const rampLoss = (autoHoursSaved*s.adminRate + auditHoursSaved*s.adminRate + delegatedHours*(s.adminRate-s.nextTierRate)) * (1-rampMultiplier);
     const grossSavings = rampedAutomation + rampedAuditing + rampedTickets + securitySavings + scriptSavings + uptimeSavings + s.intangibleValue + s.replacedToolCost;
-
-    // ── Total costs (license + integration overhead + amortized setup + wasted licenses) ──
     const totalAnnualCost = baseLicenseCost + integrationCost + setupAmortized + wastedLicenseCost;
-
     const netBenefit = grossSavings - totalAnnualCost;
-    const roi = totalAnnualCost > 0 ? (netBenefit / totalAnnualCost) * 100 : 0;
-    const paybackMonths = grossSavings > 0 ? (totalAnnualCost / grossSavings) * 12 : 999;
-    const totalHoursSaved = auditHoursSaved * rampMultiplier + autoHoursSaved * rampMultiplier + delegatedHours * rampMultiplier;
+    const roi = totalAnnualCost > 0 ? (netBenefit/totalAnnualCost)*100 : 0;
+    const paybackMonths = grossSavings > 0 ? (totalAnnualCost/grossSavings)*12 : 999;
+    const totalHoursSaved = (auditHoursSaved + autoHoursSaved + delegatedHours) * rampMultiplier;
     const fte = totalHoursSaved / 2080;
-
     return {
       baseLicenseCost, integrationCost, setupCost, setupAmortized, wastedLicenseCost,
-      effectiveCostPerUser, utilRate, rampLoss, uptimeSavings,
-      attritionCount, auditHoursSaved, auditingSavings: rampedAuditing,
-      autoHoursSaved, automationSavings: rampedAutomation,
-      reducedTickets, delegatedHours, ticketSavings: rampedTickets,
-      securitySavings, scriptSavings, totalHoursSaved, fte,
-      grossSavings, totalAnnualCost, netBenefit, roi, paybackMonths,
-      rampMultiplier,
+      effectiveCostPerUser, utilRate, rampLoss, uptimeSavings, attritionCount,
+      auditHoursSaved, auditingSavings: rampedAuditing, autoHoursSaved,
+      automationSavings: rampedAutomation, reducedTickets, delegatedHours,
+      ticketSavings: rampedTickets, securitySavings, scriptSavings,
+      totalHoursSaved, fte, grossSavings, totalAnnualCost, netBenefit, roi, paybackMonths, rampMultiplier,
     };
   }, [s]);
 
-  const isPos = r.netBenefit >= 0;
-
-  const breakdown = [
-    { label: "Automation",  value: r.automationSavings },
-    { label: "Auditing",    value: r.auditingSavings },
-    { label: "Tickets",     value: r.ticketSavings },
-    { label: "Security",    value: r.securitySavings },
-    { label: "Scripts",     value: r.scriptSavings },
-    { label: "Uptime",      value: r.uptimeSavings },
-    { label: "Intangibles", value: s.intangibleValue },
-    { label: "Displaced tool", value: s.replacedToolCost },
-  ].filter(x => x.value > 0);
-  const maxBar = Math.max(...breakdown.map(x => x.value), 1);
-  const totalPct = breakdown.reduce((a, x) => a + x.value, 0) || 1;
-
-  const Inp = ({ label, k, hint, pre, step = 1 }) => (
-    <div style={{ marginBottom: 13 }}>
-      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 2 }}>{label}</div>
-      {hint && <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 4, lineHeight: 1.4, opacity: .8 }}>{hint}</div>}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {pre && <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{pre}</span>}
-        <input type="number" value={s[k]} min={0} step={step}
-          onChange={e => set(k)(e.target.value === "" ? 0 : parseFloat(e.target.value))}
-          style={{ width: "100%", boxSizing: "border-box" }} />
-      </div>
-    </div>
-  );
-
-  const Sel = ({ label, k, hint, opts }) => (
-    <div style={{ marginBottom: 13 }}>
-      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 2 }}>{label}</div>
-      {hint && <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 4, lineHeight: 1.4, opacity: .8 }}>{hint}</div>}
-      <select value={s[k]} onChange={e => set(k)(e.target.value)} style={{ width: "100%" }}>
-        {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-      </select>
-    </div>
-  );
-
-  const SecHead = ({ label }) => (
-    <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: ".1em", textTransform: "uppercase",
-      color: P, borderBottom: `2px solid ${P}`, paddingBottom: 6, marginBottom: 14, marginTop: 18 }}>
-      {label}
-    </div>
-  );
-
-  const DetailRow = ({ label, val, sub, accent }) => (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-      padding: "6px 0", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
-      <div>
-        <div style={{ fontSize: 13, color: accent ? P : "var(--color-text-primary)", fontWeight: accent ? 500 : 400 }}>{label}</div>
-        {sub && <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{sub}</div>}
-      </div>
-      <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", marginLeft: 12, color: accent ? P : "var(--color-text-primary)" }}>{val}</div>
-    </div>
-  );
-
-  const SubHead = ({ label }) => (
-    <div style={{ fontSize: 10, fontWeight: 500, textTransform: "uppercase", letterSpacing: ".07em",
-      color: "var(--color-text-secondary)", padding: "10px 0 3px" }}>{label}</div>
-  );
+  const viewTitles = { dashboard:"Dashboard", operations:"Operations", compliance:"Compliance", automation:"Automation", analytics:"Analytics" };
 
   return (
-    <div style={{ fontFamily: "var(--font-sans,system-ui,sans-serif)", padding: "0 0 2rem" }}>
+    <div style={{ background: C.bg, minHeight: "100vh", display: "flex", flexDirection: "column",
+      fontFamily: "Inter, sans-serif", color: C.onSurf }}>
 
-      {/* HEADER */}
-      <div style={{ background: P, borderRadius: "var(--border-radius-lg)", padding: "22px 28px", marginBottom: 24,
-        display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 500, color: "#fff", marginBottom: 2 }}>SaaS ROI calculator</div>
-          <div style={{ fontSize: 13, color: "#CECBF6" }}>Estimate your annual savings and return on investment</div>
-        </div>
+      {/* TOP NAV */}
+      <header style={{ background: "rgba(19,19,19,.9)", backdropFilter: "blur(16px)",
+        borderBottom: `1px solid rgba(229,226,225,.08)`, padding: "0 28px",
+        height: 60, display: "flex", alignItems: "center", justifyContent: "space-between",
+        position: "sticky", top: 0, zIndex: 50, flexShrink: 0 }}>
+        <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase",
+          fontFamily: "Manrope, sans-serif" }}>Financial Architect ROI</span>
         <button onClick={() => window.print()}
-          style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 18px", fontSize: 13, fontWeight: 500,
-            border: "1.5px solid #CECBF6", borderRadius: "var(--border-radius-md)",
-            background: "transparent", color: "#fff", cursor: "pointer" }}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <rect x="3" y="1" width="10" height="7" rx="1" stroke="currentColor" strokeWidth="1.4"/>
-            <rect x="3" y="10" width="10" height="5" rx="1" stroke="currentColor" strokeWidth="1.4"/>
-            <path d="M3 9H1V6a1 1 0 011-1h12a1 1 0 011 1v3h-2" stroke="currentColor" strokeWidth="1.4"/>
-            <circle cx="12.5" cy="7.5" r=".8" fill="currentColor"/>
-          </svg>
-          Print / export PDF
+          style={{ padding: "7px 20px", background: C.primaryD, color: "#fff", border: "none",
+            fontSize: 11, fontFamily: "Space Grotesk, sans-serif", textTransform: "uppercase",
+            letterSpacing: ".1em", cursor: "pointer" }}>
+          Export PDF
         </button>
-      </div>
+      </header>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1.35fr)", gap: 28, alignItems: "start" }}>
+      <div style={{ display: "flex", flex: 1, overflow: "hidden", height: "calc(100vh - 60px)" }}>
 
-        {/* ── INPUTS ── */}
-        <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)",
-          borderRadius: "var(--border-radius-lg)", padding: "20px 22px" }}>
-
-          <SecHead label="Organizational metrics" />
-          <Inp k="employees" label="Number of employees" hint="Total headcount in your organization." />
-          <Inp k="adminRate" label="Admin hourly rate" pre="$" hint="Fully-loaded hourly cost of your highest-paid administrator." />
-          <Inp k="nextTierRate" label="Next-tier staff hourly rate" pre="$" hint="Hourly rate of lower-tier staff who could handle delegated tasks." />
-          <Inp k="attritionPct" label="Annual employee attrition (%)" pre="%" hint="Estimated percentage of workforce replaced each year." step={0.5} />
-
-          <SecHead label="Operational needs & tier" />
-          <Sel k="automation" label="Automation needs" hint="Classifies your organization's complexity and feature tier."
-            opts={[{ v: "basic", l: "Basic" }, { v: "moderate", l: "Moderate" }, { v: "advanced", l: "Advanced" }]} />
-          <Sel k="compliance" label="Compliance & retention requirements" hint="Determines multipliers applied to security and auditing savings."
-            opts={[{ v: "standard", l: "Standard" }, { v: "moderate", l: "Moderate" }, { v: "strict", l: "Strict" }]} />
-          <Sel k="efficiencyGoal" label="Support team efficiency goal" hint={GOAL_DESC[s.efficiencyGoal]}
-            opts={[
-              { v: "basic only", l: "Basic only" },
-              { v: "maximum time savings", l: "Maximum time savings" },
-              { v: "high security/compliance focus", l: "High security / compliance focus" },
-            ]} />
-
-          <SecHead label="Security & compliance" />
-          <Inp k="securityValue" label="Security / risk mitigation value (annual)" pre="$" hint="Estimated annual value of avoiding security incidents and fines." />
-          <Inp k="reportsPerMonth" label="Reports / reviews per month" hint="Average manual security or compliance reports run monthly." />
-
-          <SecHead label="Automation" />
-          <Inp k="hoursPerOnboard" label="Manual hours per onboard / offboard" hint="Average admin hours per hire or departure." step={0.5} />
-
-          <SecHead label="Risk avoidance" />
-          <Inp k="scriptCosts" label="Avoided script costs & maintenance (annual)" pre="$" hint="Annual spend on maintaining custom scripts (APIs, GAM, etc.)." />
-
-          <SecHead label="Implementation & onboarding" />
-          <Inp k="setupHours" label="Setup & configuration hours" hint="IT / admin hours required to deploy and configure the tool." />
-          <Inp k="setupHourlyRate" label="Setup staff hourly rate" pre="$" hint="Hourly rate of the person(s) handling setup and integration." />
-          <Inp k="trainingHours" label="Training hours per employee" hint="Average hours each employee spends learning the tool." step={0.5} />
-
-          <SecHead label="Productivity ramp" />
-          <Inp k="rampWeeks" label="Ramp period (weeks)" hint="Estimated weeks before staff reach full productivity." />
-          <Inp k="rampEfficiencyPct" label="Efficiency during ramp (%)" pre="%" hint="Percentage of full productivity achieved during the ramp period." />
-
-          <SecHead label="License utilization" />
-          <Inp k="totalLicenses" label="Total licenses purchased" hint="Number of seats/licenses in your contract." />
-          <Inp k="activeUserPct" label="Active user rate (%)" pre="%" hint="Percentage of licensed users actively using the tool." />
-
-          <SecHead label="Integration & maintenance" />
-          <Inp k="integrationHoursAnnual" label="Annual integration maintenance hours" hint="Hours/year spent maintaining API connections and integrations." />
-          <Inp k="integrationHourlyRate" label="Integration staff hourly rate" pre="$" hint="Hourly rate of the technical staff handling integrations." />
-
-          <SecHead label="Intangible benefits" />
-          <Inp k="intangibleValue" label="Estimated intangible value (annual)" pre="$" hint="Estimated value of improved satisfaction, error reduction, faster ramp, etc. Enter conservatively." />
-
-          <SecHead label="Competitive displacement" />
-          <Inp k="replacedToolCost" label="Annual cost of tool being replaced" pre="$" hint="Subscription or license cost of the incumbent tool this replaces. Counts as avoided spend." />
-
-          <SecHead label="Uptime & reliability" />
-          <Inp k="uptimeSLA" label="New tool uptime SLA (%)" pre="%" hint="Uptime guarantee of the new tool (e.g. 99.9)." step={0.01} />
-          <Inp k="currentUptimeSLA" label="Current solution uptime (%)" pre="%" hint="Uptime of your existing solution or process baseline." step={0.01} />
-        </div>
-
-        {/* ── RESULTS ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* KPI CARDS */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div style={{ background: P, borderRadius: "var(--border-radius-lg)", padding: "18px 20px" }}>
-              <div style={{ fontSize: 11, color: "#CECBF6", fontWeight: 500, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".07em" }}>Return on investment</div>
-              <div style={{ fontSize: 34, fontWeight: 500, color: "#fff" }}>{fmtPct(r.roi)}</div>
-            </div>
-            <div style={{ background: isPos ? TT : "#FCEBEB", borderRadius: "var(--border-radius-lg)", padding: "18px 20px", border: `2px solid ${isPos ? T : "#E24B4A"}` }}>
-              <div style={{ fontSize: 11, color: isPos ? TS : "#791F1F", fontWeight: 500, marginBottom: 6, textTransform: "uppercase", letterSpacing: ".07em" }}>Net annual benefit</div>
-              <div style={{ fontSize: 28, fontWeight: 500, color: isPos ? T : "#A32D2D" }}>{fmt$(r.netBenefit)}</div>
-            </div>
-            <div style={{ background: TT, borderRadius: "var(--border-radius-lg)", padding: "16px 20px" }}>
-              <div style={{ fontSize: 11, color: TS, fontWeight: 500, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".07em" }}>Total annual benefits</div>
-              <div style={{ fontSize: 24, fontWeight: 500, color: T }}>{fmt$(r.grossSavings)}</div>
-            </div>
-            <div style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-lg)", padding: "16px 20px" }}>
-              <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 500, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".07em" }}>Total annual cost</div>
-              <div style={{ fontSize: 24, fontWeight: 500, color: "var(--color-text-primary)" }}>{fmt$(r.totalAnnualCost)}</div>
-            </div>
-            <div style={{ background: AT, borderRadius: "var(--border-radius-lg)", padding: "14px 20px" }}>
-              <div style={{ fontSize: 11, color: A, fontWeight: 500, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".07em" }}>Payback period</div>
-              <div style={{ fontSize: 22, fontWeight: 500, color: A }}>{r.paybackMonths > 60 ? "60+ mo" : `${fmtDec(r.paybackMonths, 1)} mo`}</div>
-            </div>
-            <div style={{ background: "var(--color-background-secondary)", borderRadius: "var(--border-radius-lg)", padding: "14px 20px" }}>
-              <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 500, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".07em" }}>License utilization</div>
-              <div style={{ fontSize: 22, fontWeight: 500, color: "var(--color-text-primary)" }}>{fmtPct(s.activeUserPct)}</div>
-            </div>
+        {/* SIDEBAR */}
+        <aside style={{ width: 200, background: C.surface, flexShrink: 0,
+          borderRight: `1px solid rgba(70,69,84,.15)`, padding: "24px 12px",
+          display: "flex", flexDirection: "column" }}>
+          <div style={{ marginBottom: 28, padding: "0 8px" }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.onSurf, fontFamily: "Manrope, sans-serif" }}>ROI Architect</div>
+            <div style={{ fontSize: 9, color: C.onSurfV, opacity: .4, textTransform: "uppercase",
+              letterSpacing: ".18em", marginTop: 3 }}>V2.4.0 Precision</div>
           </div>
-
-          {/* GOAL BADGE */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
-            background: AT, borderRadius: "var(--border-radius-md)", border: `1px solid ${A}` }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: A, flexShrink: 0 }} />
-            <span style={{ fontSize: 12, fontWeight: 500, color: A }}>Goal: {GOAL_DESC[s.efficiencyGoal]}</span>
+          <nav style={{ flex: 1 }}>
+            {NAV_ITEMS.map(item => {
+              const active = view === item.id;
+              return (
+                <button key={item.id} onClick={() => setView(item.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%",
+                    padding: "10px 12px", marginBottom: 2, border: "none", borderRadius: 2,
+                    background: active ? C.surfaceHH : "transparent",
+                    color: active ? C.primaryD : `${C.onSurf}60`,
+                    fontSize: 11, fontFamily: "Space Grotesk, sans-serif", textTransform: "uppercase",
+                    letterSpacing: ".08em", fontWeight: active ? 700 : 400, cursor: "pointer",
+                    textAlign: "left" }}>
+                  <span style={{ color: active ? C.primaryD : `${C.onSurf}40`, flexShrink: 0 }}>
+                    {icons[item.id]}
+                  </span>
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+          <div style={{ paddingTop: 16, borderTop: `1px solid rgba(70,69,84,.2)` }}>
+            <button onClick={() => window.print()}
+              style={{ width: "100%", padding: "9px 0", background: C.surfaceH, border: "none",
+                color: C.onSurf, fontSize: 10, cursor: "pointer",
+                fontFamily: "Space Grotesk, sans-serif", textTransform: "uppercase", letterSpacing: ".1em" }}>
+              Print PDF
+            </button>
           </div>
+        </aside>
 
-          {/* BAR CHART */}
-          <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)",
-            borderRadius: "var(--border-radius-lg)", padding: "18px 20px" }}>
-            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: ".08em", color: P, marginBottom: 14 }}>Benefits by category</div>
-            {breakdown.map((b, i) => (
-              <div key={i} style={{ marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{b.label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--color-text-primary)" }}>{fmt$(b.value)}</span>
-                </div>
-                <div style={{ height: 8, background: "var(--color-background-secondary)", borderRadius: 99 }}>
-                  <div style={{ height: 8, borderRadius: 99, background: CAT_COLORS[i % CAT_COLORS.length],
-                    width: `${Math.max(2, (b.value / maxBar) * 100)}%`, transition: "width .4s ease" }} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* DONUT */}
-          <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)",
-            borderRadius: "var(--border-radius-lg)", padding: "18px 20px" }}>
-            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: ".08em", color: P, marginBottom: 14 }}>Distribution breakdown</div>
-            <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-              <svg viewBox="0 0 100 100" width={90} height={90} style={{ flexShrink: 0 }}>
-                {(() => {
-                  const R = 35, cx = 50, cy = 50, circ = 2 * Math.PI * R;
-                  let cum = 0;
-                  return breakdown.map((b, i) => {
-                    const pct = b.value / totalPct;
-                    const dash = pct * circ;
-                    const rot = -90 + cum * 360;
-                    cum += pct;
-                    return <circle key={i} cx={cx} cy={cy} r={R} fill="none"
-                      stroke={CAT_COLORS[i % CAT_COLORS.length]} strokeWidth={18}
-                      strokeDasharray={`${dash} ${circ - dash}`}
-                      style={{ transform: `rotate(${rot}deg)`, transformOrigin: `${cx}px ${cy}px` }} />;
-                  });
-                })()}
-                <circle cx={50} cy={50} r={26} fill="var(--color-background-primary)" />
-                <text x={50} y={47} textAnchor="middle" style={{ fontSize: 9, fill: P, fontWeight: 500 }}>Total</text>
-                <text x={50} y={57} textAnchor="middle" style={{ fontSize: 8, fill: "var(--color-text-secondary)" }}>{fmt$(r.grossSavings)}</text>
-              </svg>
-              <div style={{ flex: 1 }}>
-                {breakdown.map((b, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 99, background: CAT_COLORS[i % CAT_COLORS.length], flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: "var(--color-text-secondary)", flex: 1 }}>{b.label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: "var(--color-text-primary)" }}>{Math.round(b.value / totalPct * 100)}%</span>
-                  </div>
+        {/* MAIN */}
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+          <InputSidebar s={s} set={set} />
+          <main style={{ flex: 1, overflowY: "auto", background: C.bg, padding: "28px 32px" }}>
+            <div style={{ marginBottom: 20, paddingBottom: 16,
+              borderBottom: `1px solid rgba(70,69,84,.2)` }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: C.onSurf,
+                fontFamily: "Manrope, sans-serif", margin: "0 0 4px" }}>{viewTitles[view]}</h2>
+              <p style={{ fontSize: 12, color: C.onSurfV, opacity: .6, margin: 0 }}>
+                {view==="dashboard" && "Full ROI summary — all inputs and financial outputs combined."}
+                {view==="operations" && "Cost structure, license utilization, ramp productivity and uptime analysis."}
+                {view==="compliance" && "Compliance tier impact, security savings and risk profile breakdown."}
+                {view==="automation" && "Automation savings, ticket delegation and onboard/offboard detail."}
+                {view==="analytics" && "Multi-year projections, scenario analysis and cross-metric comparisons."}
+              </p>
+            </div>
+            {view==="dashboard"  && <DashboardView  r={r} s={s} />}
+            {view==="operations" && <OperationsView r={r} s={s} />}
+            {view==="compliance" && <ComplianceView r={r} s={s} />}
+            {view==="automation" && <AutomationView r={r} s={s} />}
+            {view==="analytics"  && <AnalyticsView  r={r} s={s} />}
+            <footer style={{ marginTop: 32, paddingTop: 16, borderTop: `1px solid rgba(70,69,84,.15)`,
+              display: "flex", justifyContent: "space-between", opacity: .3 }}>
+              <p style={{ fontSize: 10, fontFamily: "Space Grotesk, sans-serif",
+                textTransform: "uppercase", letterSpacing: ".1em", margin: 0 }}>
+                Financial Architect Protocol © 2025
+              </p>
+              <div style={{ display: "flex", gap: 20 }}>
+                {["Methodology","Audit Logs","Legal Disclaimer"].map(l => (
+                  <a key={l} href="#" style={{ fontSize: 10, fontFamily: "Space Grotesk, sans-serif",
+                    textTransform: "uppercase", letterSpacing: ".08em",
+                    color: C.onSurf, textDecoration: "none" }}>{l}</a>
                 ))}
               </div>
-            </div>
-          </div>
-
-          {/* DETAILED BREAKDOWN */}
-          <div style={{ background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)",
-            borderRadius: "var(--border-radius-lg)", padding: "18px 20px" }}>
-            <div style={{ fontSize: 11, fontWeight: 500, textTransform: "uppercase", letterSpacing: ".08em", color: P, marginBottom: 14 }}>Detailed breakdown</div>
-
-            <SubHead label="Capacity" />
-            <DetailRow label="Total admin hours saved (annual)" val={`${fmtN(r.totalHoursSaved)} hrs`} />
-            <DetailRow label="Full-time equivalent saved" val={`${fmtDec(r.fte, 2)} FTE`} sub="Based on 2,080-hour work year" />
-            <DetailRow label="Employee attrition (annual)" val={`${fmtN(r.attritionCount)} employees`} />
-
-            <SubHead label="Operational benefits (ramp-adjusted)" />
-            <DetailRow label="Automation savings" val={fmt$(r.automationSavings)} sub={`Ramp factor: ${fmtPct(r.rampMultiplier * 100)}`} />
-            <DetailRow label="Auditing savings" val={fmt$(r.auditingSavings)} sub={`${s.compliance} compliance × goal weight`} />
-            <DetailRow label="Ticket savings" val={fmt$(r.ticketSavings)} sub={`${Math.round(TICKET_RED[s.automation] * 100)}% reduction — ${s.automation} tier`} />
-            <DetailRow label="Security / risk savings" val={fmt$(r.securitySavings)} />
-            <DetailRow label="Script cost savings" val={fmt$(r.scriptSavings)} />
-
-            <SubHead label="Additional benefits" />
-            <DetailRow label="Uptime improvement savings" val={fmt$(r.uptimeSavings)} sub={`${s.currentUptimeSLA}% → ${s.uptimeSLA}% uptime`} />
-            <DetailRow label="Displaced tool savings" val={fmt$(s.replacedToolCost)} sub="Avoided incumbent tool renewal" />
-            <DetailRow label="Intangible value (estimated)" val={fmt$(s.intangibleValue)} sub="Satisfaction, error reduction, faster ramp" />
-
-            <SubHead label="Cost factors" />
-            <DetailRow label="Base license cost" val={fmt$(r.baseLicenseCost)} sub={`${fmtN(s.employees)} employees — ${s.automation} tier`} />
-            <DetailRow label="Wasted license cost" val={fmt$(r.wastedLicenseCost)} sub={`${100 - s.activeUserPct}% unused licenses`} />
-            <DetailRow label="Integration & maintenance" val={fmt$(r.integrationCost)} sub={`${s.integrationHoursAnnual} hrs/yr @ $${s.integrationHourlyRate}/hr`} />
-            <DetailRow label="Setup & training (amortized 3yr)" val={fmt$(r.setupAmortized)} sub={`Full cost: ${fmt$(r.setupCost)}`} />
-            <DetailRow label="Productivity ramp loss" val={fmt$(-r.rampLoss)} sub={`${s.rampWeeks} wk ramp @ ${s.rampEfficiencyPct}% efficiency`} accent />
-            <DetailRow label="Effective cost per active user" val={`${fmt$(r.effectiveCostPerUser)}/user`} sub={`${s.activeUserPct}% utilization`} />
-
-            {/* TOTALS */}
-            <div style={{ marginTop: 14, padding: "14px 16px", background: PT, borderRadius: "var(--border-radius-md)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: PS }}>Total annual benefits</span>
-                <span style={{ fontSize: 14, fontWeight: 500, color: PS }}>{fmt$(r.grossSavings)}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontSize: 12, color: P }}>Less: total annual cost</span>
-                <span style={{ fontSize: 12, color: P }}>({fmt$(r.totalAnnualCost)})</span>
-              </div>
-              <div style={{ height: "0.5px", background: P, opacity: .3, marginBottom: 8 }} />
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 14, fontWeight: 500, color: isPos ? T : "#A32D2D" }}>Net annual benefit</span>
-                <span style={{ fontSize: 16, fontWeight: 500, color: isPos ? T : "#A32D2D" }}>{fmt$(r.netBenefit)}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 12, color: A }}>Payback period</span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: A }}>{r.paybackMonths > 60 ? "60+ months" : `${fmtDec(r.paybackMonths, 1)} months`}</span>
-              </div>
-            </div>
-          </div>
-
+            </footer>
+          </main>
         </div>
       </div>
     </div>
