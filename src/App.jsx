@@ -237,7 +237,7 @@ function DashboardView({ r, s }) {
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 16, marginBottom: 24 }}>
         <KpiCard label="ROI Percentage" value={fmtPct(r.roi)} sub={isPos ? "Positive return" : "Negative return"} accent />
         <KpiCard label="Net annual benefit" value={fmt$(r.netBenefit)} sub={isPos ? "Positive net position" : "Investment exceeds return"} color={isPos ? C.secondary : C.error} />
         <KpiCard label="Payback period" value={r.paybackMonths > 60 ? "60+ mo" : `${fmtDec(r.paybackMonths,1)} mo`} sub="Aggressive amortization" />
@@ -246,7 +246,7 @@ function DashboardView({ r, s }) {
         <KpiCard label="FTE equivalent" value={`${fmtDec(r.fte,1)}`} sub="Ramp-adjusted admin hours" color={C.tertiary} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 20, marginBottom: 20 }}>
         <Panel>
           <SectionLabel label="Benefits by category" />
           <BarChart bars={breakdown.map((b,i) => ({ ...b, color: CAT[i%CAT.length] }))} />
@@ -264,12 +264,12 @@ function DashboardView({ r, s }) {
                 <div style={{ fontSize: 8, color: C.onSurfV }}>top</div>
               </div>
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               {breakdown.map((b,i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <div style={{ width: 8, height: 8, background: CAT[i%CAT.length], flexShrink: 0 }} />
-                  <span style={{ fontSize: 10, color: C.onSurfV, flex: 1, textTransform: "uppercase",
-                    letterSpacing: ".06em", fontFamily: "Space Grotesk, sans-serif" }}>{b.label}</span>
+                  <span style={{ fontSize: 10, color: C.onSurfV, flex: 1, minWidth: 0, textTransform: "uppercase",
+                    letterSpacing: ".06em", fontFamily: "Space Grotesk, sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.label}</span>
                   <span style={{ fontSize: 11, fontWeight: 700, color: C.onSurf,
                     fontFamily: "Space Grotesk, sans-serif" }}>{Math.round((b.value/totalPct)*100)}%</span>
                 </div>
@@ -841,8 +841,8 @@ export default function App() {
   const viewTitles = { dashboard:"Dashboard", operations:"Operations", compliance:"Compliance", automation:"Automation", analytics:"Analytics" };
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", display: "flex", flexDirection: "column",
-      fontFamily: "Inter, sans-serif", color: C.onSurf }}>
+    <div style={{ background: C.bg, minHeight: "100vh", width: "100%", maxWidth: "100%", display: "flex", flexDirection: "column",
+      fontFamily: "Inter, sans-serif", color: C.onSurf, overflowX: "hidden" }}>
 
       {/* TOP NAV */}
       <header style={{ background: "rgba(19,19,19,.9)", backdropFilter: "blur(16px)",
@@ -850,7 +850,7 @@ export default function App() {
         height: 60, display: "flex", alignItems: "center", justifyContent: "space-between",
         position: "sticky", top: 0, zIndex: 50, flexShrink: 0 }}>
         <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase",
-          fontFamily: "Manrope, sans-serif" }}>Financial Architect ROI</span>
+          fontFamily: "Manrope, sans-serif" }}>SaaS Tool ROI Calculator</span>
         <button onClick={() => window.print()}
           style={{ padding: "7px 20px", background: C.primaryD, color: "#fff", border: "none",
             fontSize: 11, fontFamily: "Space Grotesk, sans-serif", textTransform: "uppercase",
@@ -866,9 +866,9 @@ export default function App() {
           borderRight: `1px solid rgba(70,69,84,.15)`, padding: "24px 12px",
           display: "flex", flexDirection: "column" }}>
           <div style={{ marginBottom: 28, padding: "0 8px" }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: C.onSurf, fontFamily: "Manrope, sans-serif" }}>ROI Architect</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.onSurf, fontFamily: "Manrope, sans-serif" }}>ROI Calculator</div>
             <div style={{ fontSize: 9, color: C.onSurfV, opacity: .4, textTransform: "uppercase",
-              letterSpacing: ".18em", marginTop: 3 }}>V2.4.0 Precision</div>
+              letterSpacing: ".18em", marginTop: 3 }}>V1.0.4</div>
           </div>
           <nav style={{ flex: 1 }}>
             {NAV_ITEMS.map(item => {
@@ -921,20 +921,7 @@ export default function App() {
             {view==="compliance" ? <ComplianceView r={r} s={s} /> : null}
             {view==="automation" ? <AutomationView r={r} s={s} /> : null}
             {view==="analytics"  ? <AnalyticsView  r={r} s={s} /> : null}
-            <footer style={{ marginTop: 32, paddingTop: 16, borderTop: `1px solid rgba(70,69,84,.15)`,
-              display: "flex", justifyContent: "space-between", opacity: .3 }}>
-              <p style={{ fontSize: 10, fontFamily: "Space Grotesk, sans-serif",
-                textTransform: "uppercase", letterSpacing: ".1em", margin: 0 }}>
-                Financial Architect Protocol © 2025
-              </p>
-              <div style={{ display: "flex", gap: 20 }}>
-                {["Methodology","Audit Logs","Legal Disclaimer"].map(l => (
-                  <a key={l} href="#" style={{ fontSize: 10, fontFamily: "Space Grotesk, sans-serif",
-                    textTransform: "uppercase", letterSpacing: ".08em",
-                    color: C.onSurf, textDecoration: "none" }}>{l}</a>
-                ))}
-              </div>
-            </footer>
+            <div style={{ marginTop: 32 }} />
           </main>
         </div>
       </div>
