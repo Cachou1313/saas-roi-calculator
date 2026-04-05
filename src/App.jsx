@@ -49,6 +49,18 @@ const DEFAULTS = {
   uptimeSLA: 99.9, currentUptimeSLA: 99.0,
 };
 
+// ── Vercel Analytics ────────────────────────────────────────────────────────
+// In your actual React project:
+//   1. npm install @vercel/analytics
+//   2. import { Analytics } from "@vercel/analytics/react"
+//   3. import { track } from "@vercel/analytics"
+//   4. Render <Analytics /> once in your root App or main.tsx:
+//        root.render(<><App /><Analytics /></>)
+//
+// The track() shim below is a sandbox-safe fallback — it calls window.va()
+// which @vercel/analytics/react injects automatically at runtime.
+import { track } from "@vercel/analytics";
+
 const inputStyle = {
   width: "100%", background: "#2A2A2A", border: "none", borderLeft: `2px solid #464554`,
   color: "#E5E2E1", fontSize: 13, padding: "8px 12px", outline: "none",
@@ -68,7 +80,10 @@ function Inp({ label, k, hint, pre, step = 1, s, set }) {
         <input type="number" value={s[k]} min={0} step={step}
           onChange={e => set(k)(e.target.value === "" ? 0 : parseFloat(e.target.value))}
           onFocus={e => e.target.style.borderLeftColor = C.primaryD}
-          onBlur={e => e.target.style.borderLeftColor = C.outline}
+          onBlur={e => {
+            e.target.style.borderLeftColor = C.outline;
+            track("input_changed", { field: k, value: s[k] });
+          }}
           style={inputStyle} />
       </div>
     </div>
@@ -83,7 +98,10 @@ function Sel({ label, k, hint, opts, s, set }) {
         {label}
       </label>
       {hint && <div style={{ fontSize: 11, color: C.onSurfV, opacity: .55, marginBottom: 5, lineHeight: 1.4 }}>{hint}</div>}
-      <select value={s[k]} onChange={e => set(k)(e.target.value)}
+      <select value={s[k]} onChange={e => {
+          set(k)(e.target.value);
+          track("select_changed", { field: k, value: e.target.value });
+        }}
         style={{ ...inputStyle, cursor: "pointer" }}>
         {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
@@ -207,8 +225,6 @@ function Panel({ children }) {
   );
 }
 
-// ── VIEWS ──────────────────────────────────────────────────────────────────
-
 function DashboardView({ r, s }) {
   const isPos = r.netBenefit >= 0;
   const breakdown = [
@@ -245,7 +261,6 @@ function DashboardView({ r, s }) {
         <KpiCard label="Total annual cost" value={fmt$(r.totalAnnualCost)} sub="OpEx allocation" color={C.error} />
         <KpiCard label="FTE equivalent" value={`${fmtDec(r.fte,1)}`} sub="Ramp-adjusted admin hours" color={C.tertiary} />
       </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 20, marginBottom: 20 }}>
         <Panel>
           <SectionLabel label="Benefits by category" />
@@ -278,7 +293,6 @@ function DashboardView({ r, s }) {
           </div>
         </Panel>
       </div>
-
       <Panel>
         <SectionLabel label="Detailed benefit attribution" />
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -564,7 +578,6 @@ function AnalyticsView({ r, s }) {
 
   return (
     <div>
-      {/* Multi-year projection */}
       <Panel>
         <SectionLabel label="Multi-year benefit vs. cost projection" />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
@@ -597,9 +610,7 @@ function AnalyticsView({ r, s }) {
           </div>
         ))}
       </Panel>
-
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-        {/* Scenario analysis */}
         <Panel>
           <SectionLabel label="Scenario analysis" />
           {scenarios.map((sc,i) => {
@@ -636,8 +647,6 @@ function AnalyticsView({ r, s }) {
             );
           })}
         </Panel>
-
-        {/* Cost vs benefit ratio */}
         <Panel>
           <SectionLabel label="Cost vs. benefit ratio" />
           <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 20 }}>
@@ -673,8 +682,6 @@ function AnalyticsView({ r, s }) {
           </div>
         </Panel>
       </div>
-
-      {/* Savings category deep dive */}
       <Panel>
         <SectionLabel label="Savings category deep dive" />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
@@ -749,232 +756,52 @@ function MathView({ r, s }) {
           algebraic definition, the substituted values, and the computed result.
         </div>
       </div>
-
       <Group label="Cost structure">
-        <Eq
-          title="Base license cost"
-          formula={`getPlanCost(employees, automationTier)\n= getPlanCost(${s.employees}, "${s.automation}")`}
-          steps={[`= ${fmt$(r.baseLicenseCost)}`]}
-          result={fmt$(r.baseLicenseCost)}
-          note="Looked up from pricing tier table based on headcount and automation level." />
-        <Eq
-          title="Wasted license cost"
-          formula={`baseLicenseCost × (1 − activeUserRate)\n= ${fmt$(r.baseLicenseCost)} × (1 − ${s.activeUserPct / 100})`}
-          steps={[`= ${fmt$(r.baseLicenseCost)} × ${fmtDec(1 - s.activeUserPct/100, 2)}`, `= ${fmt$(r.wastedLicenseCost)}`]}
-          result={fmt$(r.wastedLicenseCost)}
-          note="The portion of the license cost attributable to unused seats." />
-        <Eq
-          title="Integration & maintenance cost"
-          formula={`integrationHours × integrationRate\n= ${s.integrationHoursAnnual} hrs × ${s.integrationHourlyRate}/hr`}
-          steps={[`= ${fmt$(r.integrationCost)}`]}
-          result={fmt$(r.integrationCost)}
-          note="Annual cost of maintaining API connections and integrations." />
-        <Eq
-          title="Setup & training cost (full)"
-          formula={`(setupHours × setupRate) + (employees × trainingHours × nextTierRate)\n= (${s.setupHours} × ${s.setupHourlyRate}) + (${s.employees} × ${s.trainingHours} × ${s.nextTierRate})`}
-          steps={[
-            `= ${(s.setupHours*s.setupHourlyRate).toLocaleString()} + ${(s.employees*s.trainingHours*s.nextTierRate).toLocaleString()}`,
-            `= ${fmt$(r.setupCost)}`
-          ]}
-          result={fmt$(r.setupCost)}
-          note="One-time cost of deployment and employee training." />
-        <Eq
-          title="Setup & training (amortized over 3 years)"
-          formula={`setupCost ÷ 3\n= ${fmt$(r.setupCost)} ÷ 3`}
-          steps={[`= ${fmt$(r.setupAmortized)}`]}
-          result={fmt$(r.setupAmortized)}
-          note="Spreads the one-time setup cost across a standard 3-year software lifecycle." />
-        <Eq
-          title="Total annual cost"
-          formula={`baseLicenseCost + wastedLicenseCost + integrationCost + setupAmortized\n= ${fmt$(r.baseLicenseCost)} + ${fmt$(r.wastedLicenseCost)} + ${fmt$(r.integrationCost)} + ${fmt$(r.setupAmortized)}`}
-          steps={[`= ${fmt$(r.totalAnnualCost)}`]}
-          result={fmt$(r.totalAnnualCost)}
-          note="The true all-in annual cost including overhead and wasted licenses." />
+        <Eq title="Base license cost" formula={`getPlanCost(employees, automationTier)\n= getPlanCost(${s.employees}, "${s.automation}")`} steps={[`= ${fmt$(r.baseLicenseCost)}`]} result={fmt$(r.baseLicenseCost)} note="Looked up from pricing tier table based on headcount and automation level." />
+        <Eq title="Wasted license cost" formula={`baseLicenseCost × (1 − activeUserRate)\n= ${fmt$(r.baseLicenseCost)} × (1 − ${s.activeUserPct / 100})`} steps={[`= ${fmt$(r.baseLicenseCost)} × ${fmtDec(1 - s.activeUserPct/100, 2)}`, `= ${fmt$(r.wastedLicenseCost)}`]} result={fmt$(r.wastedLicenseCost)} note="The portion of the license cost attributable to unused seats." />
+        <Eq title="Integration & maintenance cost" formula={`integrationHours × integrationRate\n= ${s.integrationHoursAnnual} hrs × ${s.integrationHourlyRate}/hr`} steps={[`= ${fmt$(r.integrationCost)}`]} result={fmt$(r.integrationCost)} note="Annual cost of maintaining API connections and integrations." />
+        <Eq title="Setup & training cost (full)" formula={`(setupHours × setupRate) + (employees × trainingHours × nextTierRate)\n= (${s.setupHours} × ${s.setupHourlyRate}) + (${s.employees} × ${s.trainingHours} × ${s.nextTierRate})`} steps={[`= ${(s.setupHours*s.setupHourlyRate).toLocaleString()} + ${(s.employees*s.trainingHours*s.nextTierRate).toLocaleString()}`, `= ${fmt$(r.setupCost)}`]} result={fmt$(r.setupCost)} note="One-time cost of deployment and employee training." />
+        <Eq title="Setup & training (amortized over 3 years)" formula={`setupCost ÷ 3\n= ${fmt$(r.setupCost)} ÷ 3`} steps={[`= ${fmt$(r.setupAmortized)}`]} result={fmt$(r.setupAmortized)} note="Spreads the one-time setup cost across a standard 3-year software lifecycle." />
+        <Eq title="Total annual cost" formula={`baseLicenseCost + wastedLicenseCost + integrationCost + setupAmortized\n= ${fmt$(r.baseLicenseCost)} + ${fmt$(r.wastedLicenseCost)} + ${fmt$(r.integrationCost)} + ${fmt$(r.setupAmortized)}`} steps={[`= ${fmt$(r.totalAnnualCost)}`]} result={fmt$(r.totalAnnualCost)} note="The true all-in annual cost including overhead and wasted licenses." />
       </Group>
-
       <Group label="Productivity ramp">
-        <Eq
-          title="Ramp fraction"
-          formula={`rampWeeks ÷ 52\n= ${s.rampWeeks} ÷ 52`}
-          steps={[`= ${fmtDec(s.rampWeeks/52, 4)}`]}
-          result={fmtDec(s.rampWeeks/52, 4)}
-          note="The proportion of the year spent in the productivity ramp period." />
-        <Eq
-          title="Ramp deficit"
-          formula={`1 − (rampEfficiency ÷ 100)\n= 1 − (${s.rampEfficiencyPct} ÷ 100)`}
-          steps={[`= 1 − ${s.rampEfficiencyPct/100}`, `= ${fmtDec(1 - s.rampEfficiencyPct/100, 2)}`]}
-          result={fmtDec(1 - s.rampEfficiencyPct/100, 2)}
-          note="How far below full productivity staff operate during the ramp period." />
-        <Eq
-          title="Ramp multiplier"
-          formula={`1 − (rampFraction × rampDeficit)\n= 1 − (${fmtDec(s.rampWeeks/52,4)} × ${fmtDec(1-s.rampEfficiencyPct/100,2)})`}
-          steps={[
-            `= 1 − ${fmtDec((s.rampWeeks/52)*(1-s.rampEfficiencyPct/100),4)}`,
-            `= ${fmtDec(r.rampMultiplier, 4)}`
-          ]}
-          result={fmtPct(r.rampMultiplier * 100)}
-          note="Applied to all time-based savings to account for the productivity ramp." />
-        <Eq
-          title="Ramp productivity loss"
-          formula={`grossTimeSavings × (1 − rampMultiplier)\n= grossTimeSavings × ${fmtDec(1 - r.rampMultiplier, 4)}`}
-          steps={[`= ${fmt$(r.rampLoss)}`]}
-          result={fmt$(r.rampLoss)}
-          note="Dollar value of savings foregone during the ramp period." />
+        <Eq title="Ramp fraction" formula={`rampWeeks ÷ 52\n= ${s.rampWeeks} ÷ 52`} steps={[`= ${fmtDec(s.rampWeeks/52, 4)}`]} result={fmtDec(s.rampWeeks/52, 4)} note="The proportion of the year spent in the productivity ramp period." />
+        <Eq title="Ramp deficit" formula={`1 − (rampEfficiency ÷ 100)\n= 1 − (${s.rampEfficiencyPct} ÷ 100)`} steps={[`= 1 − ${s.rampEfficiencyPct/100}`, `= ${fmtDec(1 - s.rampEfficiencyPct/100, 2)}`]} result={fmtDec(1 - s.rampEfficiencyPct/100, 2)} note="How far below full productivity staff operate during the ramp period." />
+        <Eq title="Ramp multiplier" formula={`1 − (rampFraction × rampDeficit)\n= 1 − (${fmtDec(s.rampWeeks/52,4)} × ${fmtDec(1-s.rampEfficiencyPct/100,2)})`} steps={[`= 1 − ${fmtDec((s.rampWeeks/52)*(1-s.rampEfficiencyPct/100),4)}`, `= ${fmtDec(r.rampMultiplier, 4)}`]} result={fmtPct(r.rampMultiplier * 100)} note="Applied to all time-based savings to account for the productivity ramp." />
+        <Eq title="Ramp productivity loss" formula={`grossTimeSavings × (1 − rampMultiplier)\n= grossTimeSavings × ${fmtDec(1 - r.rampMultiplier, 4)}`} steps={[`= ${fmt$(r.rampLoss)}`]} result={fmt$(r.rampLoss)} note="Dollar value of savings foregone during the ramp period." />
       </Group>
-
       <Group label="Automation savings">
-        <Eq
-          title="Annual attrition count"
-          formula={`employees × (attritionPct ÷ 100)\n= ${s.employees} × (${s.attritionPct} ÷ 100)`}
-          steps={[`= ${fmtDec(s.employees * s.attritionPct/100, 1)}`, `≈ ${fmtN(r.attritionCount)} employees`]}
-          result={`${fmtN(r.attritionCount)} employees`}
-          note="Number of employees onboarded or offboarded per year." />
-        <Eq
-          title="Gross automation hours saved"
-          formula={`attritionCount × hoursPerEvent × 2 × goalWeight\n= ${r.attritionCount} × ${s.hoursPerOnboard} × 2 × ${w.automation}`}
-          steps={[`= ${fmtDec(r.attritionCount * s.hoursPerOnboard * 2 * w.automation, 1)} hrs`]}
-          result={`${fmtDec(r.attritionCount * s.hoursPerOnboard * 2 * w.automation, 1)} hrs`}
-          note="×2 accounts for both onboarding and offboarding events." />
-        <Eq
-          title="Automation savings (ramp-adjusted)"
-          formula={`grossHours × adminRate × rampMultiplier\n= ${fmtDec(r.attritionCount * s.hoursPerOnboard * 2 * w.automation,1)} × ${s.adminRate} × ${fmtDec(r.rampMultiplier,4)}`}
-          steps={[`= ${fmt$(r.automationSavings)}`]}
-          result={fmt$(r.automationSavings)}
-          note="Time saved priced at the admin hourly rate, reduced by the ramp multiplier." />
-        <Eq
-          title="Reduced tickets (annual)"
-          formula={`employees × 2 × ticketReductionRate\n= ${s.employees} × 2 × ${TICKET_RED[s.automation]}`}
-          steps={[`= ${fmtN(r.reducedTickets)} tickets`]}
-          result={`${fmtN(r.reducedTickets)} tickets`}
-          note={`Ticket reduction rate for ${s.automation} tier is ${Math.round(TICKET_RED[s.automation]*100)}%.`} />
-        <Eq
-          title="Delegated hours"
-          formula={`reducedTickets × 0.5 × (1 − delegationRate) × goalWeight\n= ${r.reducedTickets} × 0.5 × (1 − ${DELEG_RATE[s.automation]}) × ${w.automation}`}
-          steps={[`= ${fmtDec(r.delegatedHours, 1)} hrs`]}
-          result={`${fmtDec(r.delegatedHours, 1)} hrs`}
-          note="Hours shifted from senior admins to lower-cost staff." />
-        <Eq
-          title="Ticket savings (ramp-adjusted)"
-          formula={`delegatedHours × (adminRate − nextTierRate) × rampMultiplier\n= ${fmtDec(r.delegatedHours,1)} × (${s.adminRate} − ${s.nextTierRate}) × ${fmtDec(r.rampMultiplier,4)}`}
-          steps={[
-            `= ${fmtDec(r.delegatedHours,1)} × ${s.adminRate - s.nextTierRate} × ${fmtDec(r.rampMultiplier,4)}`,
-            `= ${fmt$(r.ticketSavings)}`
-          ]}
-          result={fmt$(r.ticketSavings)}
-          note="Savings from rate differential between admin and next-tier staff." />
+        <Eq title="Annual attrition count" formula={`employees × (attritionPct ÷ 100)\n= ${s.employees} × (${s.attritionPct} ÷ 100)`} steps={[`= ${fmtDec(s.employees * s.attritionPct/100, 1)}`, `≈ ${fmtN(r.attritionCount)} employees`]} result={`${fmtN(r.attritionCount)} employees`} note="Number of employees onboarded or offboarded per year." />
+        <Eq title="Gross automation hours saved" formula={`attritionCount × hoursPerEvent × 2 × goalWeight\n= ${r.attritionCount} × ${s.hoursPerOnboard} × 2 × ${w.automation}`} steps={[`= ${fmtDec(r.attritionCount * s.hoursPerOnboard * 2 * w.automation, 1)} hrs`]} result={`${fmtDec(r.attritionCount * s.hoursPerOnboard * 2 * w.automation, 1)} hrs`} note="×2 accounts for both onboarding and offboarding events." />
+        <Eq title="Automation savings (ramp-adjusted)" formula={`grossHours × adminRate × rampMultiplier\n= ${fmtDec(r.attritionCount * s.hoursPerOnboard * 2 * w.automation,1)} × ${s.adminRate} × ${fmtDec(r.rampMultiplier,4)}`} steps={[`= ${fmt$(r.automationSavings)}`]} result={fmt$(r.automationSavings)} note="Time saved priced at the admin hourly rate, reduced by the ramp multiplier." />
+        <Eq title="Reduced tickets (annual)" formula={`employees × 2 × ticketReductionRate\n= ${s.employees} × 2 × ${TICKET_RED[s.automation]}`} steps={[`= ${fmtN(r.reducedTickets)} tickets`]} result={`${fmtN(r.reducedTickets)} tickets`} note={`Ticket reduction rate for ${s.automation} tier is ${Math.round(TICKET_RED[s.automation]*100)}%.`} />
+        <Eq title="Delegated hours" formula={`reducedTickets × 0.5 × (1 − delegationRate) × goalWeight\n= ${r.reducedTickets} × 0.5 × (1 − ${DELEG_RATE[s.automation]}) × ${w.automation}`} steps={[`= ${fmtDec(r.delegatedHours, 1)} hrs`]} result={`${fmtDec(r.delegatedHours, 1)} hrs`} note="Hours shifted from senior admins to lower-cost staff." />
+        <Eq title="Ticket savings (ramp-adjusted)" formula={`delegatedHours × (adminRate − nextTierRate) × rampMultiplier\n= ${fmtDec(r.delegatedHours,1)} × (${s.adminRate} − ${s.nextTierRate}) × ${fmtDec(r.rampMultiplier,4)}`} steps={[`= ${fmtDec(r.delegatedHours,1)} × ${s.adminRate - s.nextTierRate} × ${fmtDec(r.rampMultiplier,4)}`, `= ${fmt$(r.ticketSavings)}`]} result={fmt$(r.ticketSavings)} note="Savings from rate differential between admin and next-tier staff." />
       </Group>
-
       <Group label="Compliance & auditing savings">
-        <Eq
-          title="Audit hours per report"
-          formula={`Lookup by compliance tier: standard=1.5, moderate=2.5, strict=4\n= ${auditHoursBase} hrs (${s.compliance} tier)`}
-          steps={[]}
-          result={`${auditHoursBase} hrs/report`}
-          note="Estimated manual hours required per compliance report or review." />
-        <Eq
-          title="Gross auditing hours saved"
-          formula={`reportsPerMonth × auditHrsPerReport × 12 × complianceMulti × goalWeight\n= ${s.reportsPerMonth} × ${auditHoursBase} × 12 × ${compMulti} × ${w.auditing}`}
-          steps={[`= ${fmtDec(r.auditHoursSaved, 1)} hrs`]}
-          result={`${fmtDec(r.auditHoursSaved, 1)} hrs`}
-          note="Total annual audit hours eliminated through automation." />
-        <Eq
-          title="Auditing savings (ramp-adjusted)"
-          formula={`auditHoursSaved × adminRate × rampMultiplier\n= ${fmtDec(r.auditHoursSaved,1)} × ${s.adminRate} × ${fmtDec(r.rampMultiplier,4)}`}
-          steps={[`= ${fmt$(r.auditingSavings)}`]}
-          result={fmt$(r.auditingSavings)}
-          note="Audit time savings priced at the admin rate, reduced by the ramp multiplier." />
-        <Eq
-          title="Security / risk savings"
-          formula={`securityValue × complianceMultiplier × goalSecurityWeight\n= ${s.securityValue.toLocaleString()} × ${compMulti} × ${w.security}`}
-          steps={[`= ${fmt$(r.securitySavings)}`]}
-          result={fmt$(r.securitySavings)}
-          note="Avoided cost of security incidents and compliance fines." />
-        <Eq
-          title="Script cost savings"
-          formula={`scriptCosts × goalScriptWeight\n= ${s.scriptCosts.toLocaleString()} × ${w.scripts}`}
-          steps={[`= ${fmt$(r.scriptSavings)}`]}
-          result={fmt$(r.scriptSavings)}
-          note="Annual spend on custom scripts and APIs that the tool eliminates." />
+        <Eq title="Audit hours per report" formula={`Lookup by compliance tier: standard=1.5, moderate=2.5, strict=4\n= ${auditHoursBase} hrs (${s.compliance} tier)`} steps={[]} result={`${auditHoursBase} hrs/report`} note="Estimated manual hours required per compliance report or review." />
+        <Eq title="Gross auditing hours saved" formula={`reportsPerMonth × auditHrsPerReport × 12 × complianceMulti × goalWeight\n= ${s.reportsPerMonth} × ${auditHoursBase} × 12 × ${compMulti} × ${w.auditing}`} steps={[`= ${fmtDec(r.auditHoursSaved, 1)} hrs`]} result={`${fmtDec(r.auditHoursSaved, 1)} hrs`} note="Total annual audit hours eliminated through automation." />
+        <Eq title="Auditing savings (ramp-adjusted)" formula={`auditHoursSaved × adminRate × rampMultiplier\n= ${fmtDec(r.auditHoursSaved,1)} × ${s.adminRate} × ${fmtDec(r.rampMultiplier,4)}`} steps={[`= ${fmt$(r.auditingSavings)}`]} result={fmt$(r.auditingSavings)} note="Audit time savings priced at the admin rate, reduced by the ramp multiplier." />
+        <Eq title="Security / risk savings" formula={`securityValue × complianceMultiplier × goalSecurityWeight\n= ${s.securityValue.toLocaleString()} × ${compMulti} × ${w.security}`} steps={[`= ${fmt$(r.securitySavings)}`]} result={fmt$(r.securitySavings)} note="Avoided cost of security incidents and compliance fines." />
+        <Eq title="Script cost savings" formula={`scriptCosts × goalScriptWeight\n= ${s.scriptCosts.toLocaleString()} × ${w.scripts}`} steps={[`= ${fmt$(r.scriptSavings)}`]} result={fmt$(r.scriptSavings)} note="Annual spend on custom scripts and APIs that the tool eliminates." />
       </Group>
-
       <Group label="Uptime, intangibles & displacement">
-        <Eq
-          title="Uptime improvement"
-          formula={`newUptimeSLA% − currentUptimeSLA%\n= ${s.uptimeSLA}% − ${s.currentUptimeSLA}%`}
-          steps={[`= ${fmtDec(Math.max(0, s.uptimeSLA - s.currentUptimeSLA), 2)}%`]}
-          result={`+${fmtDec(Math.max(0, s.uptimeSLA - s.currentUptimeSLA), 2)}%`}
-          note="The percentage point gain in system availability." />
-        <Eq
-          title="Uptime savings"
-          formula={`uptimeGain × employees × 2080 × adminRate\n= ${fmtDec(Math.max(0,s.uptimeSLA-s.currentUptimeSLA)/100,4)} × ${s.employees} × 2080 × ${s.adminRate}`}
-          steps={[`= ${fmt$(r.uptimeSavings)}`]}
-          result={fmt$(r.uptimeSavings)}
-          note="Productivity recovered from fewer outages, priced at the admin hourly rate." />
-        <Eq
-          title="Intangible value"
-          formula={`User-supplied estimate\n= ${s.intangibleValue.toLocaleString()}`}
-          steps={[]}
-          result={fmt$(s.intangibleValue)}
-          note="Estimated value of satisfaction improvements, error reduction, and faster ramp. Added directly to gross benefits." />
-        <Eq
-          title="Displaced tool savings"
-          formula={`Annual cost of replaced tool (avoided spend)\n= ${s.replacedToolCost.toLocaleString()}`}
-          steps={[]}
-          result={fmt$(s.replacedToolCost)}
-          note="The incumbent tool's license cost is treated as avoided spend on the benefits side." />
+        <Eq title="Uptime improvement" formula={`newUptimeSLA% − currentUptimeSLA%\n= ${s.uptimeSLA}% − ${s.currentUptimeSLA}%`} steps={[`= ${fmtDec(Math.max(0, s.uptimeSLA - s.currentUptimeSLA), 2)}%`]} result={`+${fmtDec(Math.max(0, s.uptimeSLA - s.currentUptimeSLA), 2)}%`} note="The percentage point gain in system availability." />
+        <Eq title="Uptime savings" formula={`uptimeGain × employees × 2080 × adminRate\n= ${fmtDec(Math.max(0,s.uptimeSLA-s.currentUptimeSLA)/100,4)} × ${s.employees} × 2080 × ${s.adminRate}`} steps={[`= ${fmt$(r.uptimeSavings)}`]} result={fmt$(r.uptimeSavings)} note="Productivity recovered from fewer outages, priced at the admin hourly rate." />
+        <Eq title="Intangible value" formula={`User-supplied estimate\n= ${s.intangibleValue.toLocaleString()}`} steps={[]} result={fmt$(s.intangibleValue)} note="Estimated value of satisfaction improvements, error reduction, and faster ramp. Added directly to gross benefits." />
+        <Eq title="Displaced tool savings" formula={`Annual cost of replaced tool (avoided spend)\n= ${s.replacedToolCost.toLocaleString()}`} steps={[]} result={fmt$(s.replacedToolCost)} note="The incumbent tool's license cost is treated as avoided spend on the benefits side." />
       </Group>
-
       <Group label="ROI summary">
-        <Eq
-          title="Gross benefits (total annual benefits)"
-          formula={`automationSavings + auditingSavings + ticketSavings + securitySavings\n+ scriptSavings + uptimeSavings + intangibleValue + replacedToolCost`}
-          steps={[
-            `= ${fmt$(r.automationSavings)} + ${fmt$(r.auditingSavings)} + ${fmt$(r.ticketSavings)}`,
-            `  + ${fmt$(r.securitySavings)} + ${fmt$(r.scriptSavings)} + ${fmt$(r.uptimeSavings)}`,
-            `  + ${fmt$(s.intangibleValue)} + ${fmt$(s.replacedToolCost)}`,
-            `= ${fmt$(r.grossSavings)}`
-          ]}
-          result={fmt$(r.grossSavings)}
-          note="Sum of all benefit categories." />
-        <Eq
-          title="Net annual benefit"
-          formula={`grossBenefits − totalAnnualCost\n= ${fmt$(r.grossSavings)} − ${fmt$(r.totalAnnualCost)}`}
-          steps={[`= ${fmt$(r.netBenefit)}`]}
-          result={fmt$(r.netBenefit)}
-          note="The actual financial profit after subtracting all costs from all benefits." />
-        <Eq
-          title="Return on investment (ROI)"
-          formula={`(netAnnualBenefit ÷ totalAnnualCost) × 100\n= (${fmt$(r.netBenefit)} ÷ ${fmt$(r.totalAnnualCost)}) × 100`}
-          steps={[`= ${fmtPct(r.roi)}`]}
-          result={fmtPct(r.roi)}
-          note="Percentage return on total annualized investment." />
-        <Eq
-          title="Payback period"
-          formula={`(totalAnnualCost ÷ grossBenefits) × 12\n= (${fmt$(r.totalAnnualCost)} ÷ ${fmt$(r.grossSavings)}) × 12`}
-          steps={[`= ${r.paybackMonths > 60 ? "60+" : fmtDec(r.paybackMonths, 1)} months`]}
-          result={r.paybackMonths > 60 ? "60+ months" : `${fmtDec(r.paybackMonths, 1)} months`}
-          note="How many months before the tool fully pays for itself." />
-        <Eq
-          title="FTE equivalent"
-          formula={`totalHoursSaved ÷ 2080\n= ${fmtN(r.totalHoursSaved)} ÷ 2080`}
-          steps={[`= ${fmtDec(r.fte, 2)} FTE`]}
-          result={`${fmtDec(r.fte, 2)} FTE`}
-          note="Converts ramp-adjusted hours saved into full-time equivalent headcount (2,080 hr/yr standard)." />
-        <Eq
-          title="Effective cost per active user"
-          formula={`baseLicenseCost ÷ (totalLicenses × activeUserRate)\n= ${fmt$(r.baseLicenseCost)} ÷ (${s.totalLicenses} × ${s.activeUserPct/100})`}
-          steps={[
-            `= ${fmt$(r.baseLicenseCost)} ÷ ${Math.round(s.totalLicenses * s.activeUserPct/100)}`,
-            `= ${fmt$(r.effectiveCostPerUser)} per active user`
-          ]}
-          result={`${fmt$(r.effectiveCostPerUser)}/user`}
-          note="The true per-seat cost accounting for unused licenses." />
+        <Eq title="Gross benefits (total annual benefits)" formula={`automationSavings + auditingSavings + ticketSavings + securitySavings\n+ scriptSavings + uptimeSavings + intangibleValue + replacedToolCost`} steps={[`= ${fmt$(r.automationSavings)} + ${fmt$(r.auditingSavings)} + ${fmt$(r.ticketSavings)}`, `  + ${fmt$(r.securitySavings)} + ${fmt$(r.scriptSavings)} + ${fmt$(r.uptimeSavings)}`, `  + ${fmt$(s.intangibleValue)} + ${fmt$(s.replacedToolCost)}`, `= ${fmt$(r.grossSavings)}`]} result={fmt$(r.grossSavings)} note="Sum of all benefit categories." />
+        <Eq title="Net annual benefit" formula={`grossBenefits − totalAnnualCost\n= ${fmt$(r.grossSavings)} − ${fmt$(r.totalAnnualCost)}`} steps={[`= ${fmt$(r.netBenefit)}`]} result={fmt$(r.netBenefit)} note="The actual financial profit after subtracting all costs from all benefits." />
+        <Eq title="Return on investment (ROI)" formula={`(netAnnualBenefit ÷ totalAnnualCost) × 100\n= (${fmt$(r.netBenefit)} ÷ ${fmt$(r.totalAnnualCost)}) × 100`} steps={[`= ${fmtPct(r.roi)}`]} result={fmtPct(r.roi)} note="Percentage return on total annualized investment." />
+        <Eq title="Payback period" formula={`(totalAnnualCost ÷ grossBenefits) × 12\n= (${fmt$(r.totalAnnualCost)} ÷ ${fmt$(r.grossSavings)}) × 12`} steps={[`= ${r.paybackMonths > 60 ? "60+" : fmtDec(r.paybackMonths, 1)} months`]} result={r.paybackMonths > 60 ? "60+ months" : `${fmtDec(r.paybackMonths, 1)} months`} note="How many months before the tool fully pays for itself." />
+        <Eq title="FTE equivalent" formula={`totalHoursSaved ÷ 2080\n= ${fmtN(r.totalHoursSaved)} ÷ 2080`} steps={[`= ${fmtDec(r.fte, 2)} FTE`]} result={`${fmtDec(r.fte, 2)} FTE`} note="Converts ramp-adjusted hours saved into full-time equivalent headcount (2,080 hr/yr standard)." />
+        <Eq title="Effective cost per active user" formula={`baseLicenseCost ÷ (totalLicenses × activeUserRate)\n= ${fmt$(r.baseLicenseCost)} ÷ (${s.totalLicenses} × ${s.activeUserPct/100})`} steps={[`= ${fmt$(r.baseLicenseCost)} ÷ ${Math.round(s.totalLicenses * s.activeUserPct/100)}`, `= ${fmt$(r.effectiveCostPerUser)} per active user`]} result={`${fmt$(r.effectiveCostPerUser)}/user`} note="The true per-seat cost accounting for unused licenses." />
       </Group>
     </div>
   );
 }
-
-// ── SIDEBAR NAV ICONS (SVG) ────────────────────────────────────────────────
 
 const icons = {
   dashboard: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
@@ -994,20 +821,16 @@ const NAV_ITEMS = [
   { id: "math",       label: "Methodology" },
 ];
 
-// ── INPUT SIDEBAR SECTIONS ─────────────────────────────────────────────────
-
 function InputSidebar({ s, set }) {
   const p = { s, set };
   return (
     <section style={{ width: 300, flexShrink: 0, background: C.surfaceC,
       borderRight: `1px solid rgba(70,69,84,.15)`, overflowY: "auto", padding: "24px 22px" }}>
-
       <SecHead label="Organization" />
-      <Inp k="employees"    label="Total headcount"        hint="Total employees in your organization." {...p} />
-      <Inp k="adminRate"    label="Admin hourly rate"  pre="$" hint="Fully-loaded hourly cost of senior admin." {...p} />
+      <Inp k="employees"    label="Total headcount"         hint="Total employees in your organization." {...p} />
+      <Inp k="adminRate"    label="Admin hourly rate"   pre="$" hint="Fully-loaded hourly cost of senior admin." {...p} />
       <Inp k="nextTierRate" label="Next-tier staff rate" pre="$" hint="Hourly rate of lower-tier delegated staff." {...p} />
       <Inp k="attritionPct" label="Annual attrition (%)" pre="%" step={0.5} hint="% of workforce replaced annually." {...p} />
-
       <SecHead label="Operational needs & tier" />
       <Sel k="automation" label="Automation needs" hint="Classifies complexity and feature tier."
         opts={[{v:"basic",l:"Basic"},{v:"moderate",l:"Moderate"},{v:"advanced",l:"Advanced"}]} {...p} />
@@ -1019,44 +842,33 @@ function InputSidebar({ s, set }) {
           {v:"maximum time savings",l:"Maximum time savings"},
           {v:"high security/compliance focus",l:"High security / compliance focus"},
         ]} {...p} />
-
       <SecHead label="Compliance & risk" />
       <Inp k="securityValue"   label="Annual risk mitigation value" pre="$" hint="Value of avoided incidents and fines." {...p} />
       <Inp k="reportsPerMonth" label="Reports / reviews per month"  hint="Manual compliance reports run monthly." {...p} />
-
       <SecHead label="Automation" />
       <Inp k="hoursPerOnboard" label="Hours per onboard / offboard" step={0.5} hint="Admin hours per hire or departure." {...p} />
-
       <SecHead label="Risk avoidance" />
       <Inp k="scriptCosts" label="Avoided script costs (annual)" pre="$" hint="Annual spend on custom scripts." {...p} />
-
       <SecHead label="Implementation" />
-      <Inp k="setupHours"      label="Setup & config hours"         hint="IT hours to deploy and configure." {...p} />
-      <Inp k="setupHourlyRate" label="Setup staff hourly rate"  pre="$" hint="Rate of person(s) handling setup." {...p} />
-      <Inp k="trainingHours"   label="Training hours per employee"  hint="Hours each employee learns the tool." step={0.5} {...p} />
-
+      <Inp k="setupHours"      label="Setup & config hours"          hint="IT hours to deploy and configure." {...p} />
+      <Inp k="setupHourlyRate" label="Setup staff hourly rate"   pre="$" hint="Rate of person(s) handling setup." {...p} />
+      <Inp k="trainingHours"   label="Training hours per employee"   hint="Hours each employee learns the tool." step={0.5} {...p} />
       <SecHead label="Productivity ramp" />
-      <Inp k="rampWeeks"         label="Ramp period (weeks)"         hint="Weeks before staff reach full productivity." {...p} />
-      <Inp k="rampEfficiencyPct" label="Efficiency during ramp (%)" pre="%" hint="% of full productivity during ramp." {...p} />
-
+      <Inp k="rampWeeks"         label="Ramp period (weeks)"          hint="Weeks before staff reach full productivity." {...p} />
+      <Inp k="rampEfficiencyPct" label="Efficiency during ramp (%)"  pre="%" hint="% of full productivity during ramp." {...p} />
       <SecHead label="License utilization" />
       <Inp k="totalLicenses"  label="Total licenses purchased" hint="Total seats in your contract." {...p} />
       <Inp k="activeUserPct"  label="Active user rate (%)" pre="%" hint="% of licensed users actively using the tool." {...p} />
-
       <SecHead label="Integration & maintenance" />
-      <Inp k="integrationHoursAnnual" label="Annual integration hours"   hint="Hours/year maintaining API connections." {...p} />
-      <Inp k="integrationHourlyRate"  label="Integration staff rate" pre="$" hint="Rate of technical integration staff." {...p} />
-
+      <Inp k="integrationHoursAnnual" label="Annual integration hours"    hint="Hours/year maintaining API connections." {...p} />
+      <Inp k="integrationHourlyRate"  label="Integration staff rate"  pre="$" hint="Rate of technical integration staff." {...p} />
       <SecHead label="Intangible benefits" />
       <Inp k="intangibleValue" label="Estimated intangible value" pre="$" hint="Satisfaction, error reduction, faster ramp." {...p} />
-
       <SecHead label="Competitive displacement" />
       <Inp k="replacedToolCost" label="Replaced tool annual cost" pre="$" hint="Incumbent tool license — treated as avoided spend." {...p} />
-
       <SecHead label="Uptime & reliability" />
-      <Inp k="uptimeSLA"        label="New tool uptime SLA (%)"    pre="%" step={0.01} hint="Uptime guarantee of the new tool." {...p} />
+      <Inp k="uptimeSLA"        label="New tool uptime SLA (%)"     pre="%" step={0.01} hint="Uptime guarantee of the new tool." {...p} />
       <Inp k="currentUptimeSLA" label="Current solution uptime (%)" pre="%" step={0.01} hint="Uptime of your existing solution." {...p} />
-
       <div style={{ marginTop: 32, paddingTop: 20, borderTop: `1px solid rgba(70,69,84,.2)`, textAlign: "center" }}>
         <p style={{ fontSize: 9, color: C.onSurfV, opacity: .3, textTransform: "uppercase",
           letterSpacing: ".15em", fontFamily: "Space Grotesk, sans-serif" }}>Extended parameters locked</p>
@@ -1065,12 +877,15 @@ function InputSidebar({ s, set }) {
   );
 }
 
-// ── ROOT ──────────────────────────────────────────────────────────────────
-
 export default function App() {
   const [s, setS] = useState(DEFAULTS);
   const [view, setView] = useState("dashboard");
   const set = k => v => setS(p => ({ ...p, [k]: v }));
+
+  // Track initial page load
+  useState(() => {
+    track("calculator_loaded", { defaultEmployees: DEFAULTS.employees });
+  });
 
   const r = useMemo(() => {
     const w = GOAL_W[s.efficiencyGoal];
@@ -1114,6 +929,21 @@ export default function App() {
     };
   }, [s]);
 
+  const handleNavClick = (id) => {
+    setView(id);
+    track("nav_tab_clicked", { tab: id });
+  };
+
+  const handleExport = () => {
+    track("export_pdf_clicked", {
+      roi: Math.round(r.roi),
+      netBenefit: Math.round(r.netBenefit),
+      employees: s.employees,
+      automationTier: s.automation,
+    });
+    window.print();
+  };
+
   const viewTitles = { dashboard:"Dashboard", operations:"Operations", compliance:"Compliance", automation:"Automation", analytics:"Analytics", math:"Methodology" };
 
   return (
@@ -1127,7 +957,7 @@ export default function App() {
         position: "sticky", top: 0, zIndex: 50, flexShrink: 0 }}>
         <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase",
           fontFamily: "Manrope, sans-serif" }}>SaaS Tool ROI Calculator</span>
-        <button onClick={() => window.print()}
+        <button onClick={handleExport}
           style={{ padding: "7px 20px", background: C.primaryD, color: "#fff", border: "none",
             fontSize: 11, fontFamily: "Space Grotesk, sans-serif", textTransform: "uppercase",
             letterSpacing: ".1em", cursor: "pointer" }}>
@@ -1150,7 +980,7 @@ export default function App() {
             {NAV_ITEMS.map(item => {
               const active = view === item.id;
               return (
-                <button key={item.id} onClick={() => setView(item.id)}
+                <button key={item.id} onClick={() => handleNavClick(item.id)}
                   style={{ display: "flex", alignItems: "center", gap: 10, width: "100%",
                     padding: "10px 12px", marginBottom: 2, border: "none", borderRadius: 2,
                     background: active ? C.surfaceHH : "transparent",
@@ -1167,7 +997,7 @@ export default function App() {
             })}
           </nav>
           <div style={{ paddingTop: 16, borderTop: `1px solid rgba(70,69,84,.2)` }}>
-            <button onClick={() => window.print()}
+            <button onClick={handleExport}
               style={{ width: "100%", padding: "9px 0", background: C.surfaceH, border: "none",
                 color: C.onSurf, fontSize: 10, cursor: "pointer",
                 fontFamily: "Space Grotesk, sans-serif", textTransform: "uppercase", letterSpacing: ".1em" }}>
@@ -1185,14 +1015,14 @@ export default function App() {
               <h2 style={{ fontSize: 18, fontWeight: 700, color: C.onSurf,
                 fontFamily: "Manrope, sans-serif", margin: "0 0 4px" }}>{viewTitles[view]}</h2>
               <p style={{ fontSize: 12, color: C.onSurfV, opacity: .6, margin: 0 }}>
-                {view==="dashboard" && "Full ROI summary — all inputs and financial outputs combined."}
+                {view==="dashboard"  && "Full ROI summary — all inputs and financial outputs combined."}
                 {view==="operations" && "Cost structure, license utilization, ramp productivity and uptime analysis."}
                 {view==="compliance" && "Compliance tier impact, security savings and risk profile breakdown."}
                 {view==="automation" && "Automation savings, ticket delegation and onboard/offboard detail."}
-                {view==="analytics" && "Multi-year projections, scenario analysis and cross-metric comparisons."}
+                {view==="analytics"  && "Multi-year projections, scenario analysis and cross-metric comparisons."}
               </p>
             </div>
-                            {view==="dashboard"  ? <DashboardView  r={r} s={s} /> : null}
+            {view==="dashboard"  ? <DashboardView  r={r} s={s} /> : null}
             {view==="operations" ? <OperationsView r={r} s={s} /> : null}
             {view==="compliance" ? <ComplianceView r={r} s={s} /> : null}
             {view==="automation" ? <AutomationView r={r} s={s} /> : null}
